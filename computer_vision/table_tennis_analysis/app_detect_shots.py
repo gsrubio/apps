@@ -22,7 +22,7 @@ movement = 'forehand'
 # Diretórios de saída
 base_dir = os.path.dirname(os.path.abspath(__file__))
 forehand_dir = os.path.join(base_dir, movement)
-land_dir = os.path.join(base_dir, 'landmarks')
+land_dir = os.path.join(base_dir, f'{movement}_landmarks')
 
 os.makedirs(forehand_dir, exist_ok=True)
 os.makedirs(land_dir, exist_ok=True)
@@ -68,8 +68,8 @@ if uploaded_file is not None:
         if not ret:
             break
 
-        # Redimensionamento
-        scale_percent = 95
+        # Redimensionamento para melhorar performance
+        scale_percent = 80
         width = int(frame.shape[1] * scale_percent / 100)
         height = int(frame.shape[0] * scale_percent / 100)
         frame = cv2.resize(frame, (width, height), interpolation=cv2.INTER_AREA)
