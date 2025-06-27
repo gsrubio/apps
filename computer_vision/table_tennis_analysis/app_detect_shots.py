@@ -31,6 +31,7 @@ os.makedirs(land_dir, exist_ok=True)
 st.title("Forehand Drive Detector - Table Tennis")
 
 uploaded_file = st.file_uploader("Upload seu vídeo de treino (MP4)", type=['mp4'])
+scale_percent = st.slider("Select Scale Percentage", min_value=10, max_value=100, value=100)
 
 if uploaded_file is not None:
     st.success("Arquivo recebido! Iniciando processamento...")
@@ -69,7 +70,6 @@ if uploaded_file is not None:
             break
 
         # Redimensionamento para melhorar performance
-        scale_percent = 80
         width = int(frame.shape[1] * scale_percent / 100)
         height = int(frame.shape[0] * scale_percent / 100)
         frame = cv2.resize(frame, (width, height), interpolation=cv2.INTER_AREA)

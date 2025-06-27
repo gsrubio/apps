@@ -12,7 +12,7 @@ import time
 # === Configuração inicial ===
 mp_pose = mp.solutions.pose  # Inicializa módulo de pose do MediaPipe
 st.set_page_config(layout="wide")  # Layout da página no modo largo
-movement = 'forehand'  # Tipo de movimento analisado (ex: forehand de tênis)
+folder = 'videos'  # Pasta onde os vídeos estão armazenados
 
 # === Inicialização de variáveis na sessão ===
 for key in ["idx", "idx2", "is_playing", "angles_hist", "precomputed", "fps_my", "fps_pro"]:
@@ -28,17 +28,17 @@ for key in ["idx", "idx2", "is_playing", "angles_hist", "precomputed", "fps_my",
 @st.cache_resource
 def load_data(video, video2):
     # Carrega os dados de landmarks (pontos do corpo) pré-computados
-    with open(f"{movement}_landmarks/landmarks_{video.split('.')[0]}.pickle", 'rb') as f:
+    with open(f"{folder}_landmarks/landmarks_{video.split('.')[0]}.pickle", 'rb') as f:
         lands_data = pickle.load(f)
-    with open(f"{movement}_landmarks/landmarks_{video2.split('.')[0]}.pickle", 'rb') as f:
+    with open(f"{folder}_landmarks/landmarks_{video2.split('.')[0]}.pickle", 'rb') as f:
         lands_data2 = pickle.load(f)
     return lands_data, lands_data2
 
 @st.cache_resource
 def load_videos(video, video2):
     # Abre os vídeos usando OpenCV
-    cap_my = cv2.VideoCapture(f'{movement}/{video}')
-    cap_pro = cv2.VideoCapture(f'{movement}/{video2}')
+    cap_my = cv2.VideoCapture(f'{folder}/{video}')
+    cap_pro = cv2.VideoCapture(f'{folder}/{video2}')
     return {"my": cap_my, "pro": cap_pro}
 
 # === Função de cálculo de ângulo entre três pontos ===
@@ -89,6 +89,14 @@ def draw_sidebar(landmarks, landmarks2):
         st.session_state.idx2 = max(st.session_state.idx2 - 1, 0)
     if col4.button('+1 R'):  # Avançar vídeo de referência
         st.session_state.idx2 = min(st.session_state.idx2 + 1, len(landmarks2)-1)
+    if col3.button('Voltar'):
+        st.session_state.is_playing = False
+        st.session_state.idx = max(st.session_state.idx - 1, 0)
+        st.session_state.idx2 = max(st.session_state.idx2 - 1, 0)
+    if col4.button('Avançar'):
+        st.session_state.is_playing = False
+        st.session_state.idx = min(st.session_state.idx + 1, len(landmarks)-1)
+        st.session_state.idx2 = min(st.session_state.idx2 + 1, len(landmarks2)-1)
 
     # Botão único de Play/Pause
     if col7.button('Play / Pause'):
@@ -103,11 +111,52 @@ def draw_sidebar(landmarks, landmarks2):
     st.session_state["idx"] = slider_play.slider('Main Video', 0, len(landmarks) - 1, st.session_state["idx"])
     st.session_state["idx2"] = slider_ref_play.slider('Ref Video', 0, len(landmarks2) - 1, st.session_state["idx2"])
 
+# === Função para recortar e redimensionar video ===
+def compute_crop_bounds(landmarks, width, height):
+    xs = [lmk.x for frame in landmarks for lmk in frame.landmark]
+    ys = [lmk.y for frame in landmarks for lmk in frame.landmark]
+
+    min_x, max_x = min(xs), max(xs)
+    min_y, max_y = min(ys), max(ys)
+
+    # Adiciona % de margem
+    pad_x = (max_x - min_x) * 0.25
+    pad_y = (max_y - min_y) * 0.25
+
+    crop_left = max(0, int((min_x - pad_x) * width))
+    crop_right = min(width, int((max_x + pad_x) * width))
+    crop_top = 0 #max(0, int((min_y - pad_y) * height))
+    crop_bottom = height #min(height, int((max_y + pad_y) * height))
+
+    return crop_left, crop_right, crop_top, crop_bottom
+
+
+def crop_and_resize(frame, crop_bounds, target_height=600):
+    x1, x2, y1, y2 = crop_bounds
+    cropped = frame[y1:y2, x1:x2]
+
+    h, w = cropped.shape[:2]
+    scale = target_height / h
+    new_size = (int(w * scale), target_height)
+
+    resized = cv2.resize(cropped, new_size)
+    return resized
+
 # === Lógica principal do app ===
 # Listagem dos vídeos disponíveis
-video_files = sorted([i for i in os.listdir(movement) if i[0] != '.'])
+video_files = sorted([i for i in os.listdir(folder) if i[0] != '.'])
 video = st.sidebar.selectbox("Selecione um vídeo:", video_files)
 video2 = st.sidebar.selectbox("Selecione um vídeo de ref:", video_files, index=len(video_files)-1)
+max_video_height = st.sidebar.slider("Altura máxima dos vídeos (px)", 400, 1000, 600)
+
+# Após selecionar video e video2:
+if "last_loaded_videos" not in st.session_state:
+    st.session_state["last_loaded_videos"] = ("", "")
+
+if (video, video2) != st.session_state["last_loaded_videos"]:
+    st.session_state["precomputed"] = {}  # Limpa ângulos pré-calculados
+    st.session_state["last_loaded_videos"] = (video, video2)
+
 
 if video and video2:
     # Dicionário de partes do corpo e pontos de referência para ângulo
@@ -139,6 +188,8 @@ if video and video2:
     ph1, ph2 = col1.empty(), col2.empty()
     h, w = int(cap["my"].get(cv2.CAP_PROP_FRAME_HEIGHT)), int(cap["my"].get(cv2.CAP_PROP_FRAME_WIDTH))
     h2, w2 = int(cap["pro"].get(cv2.CAP_PROP_FRAME_HEIGHT)), int(cap["pro"].get(cv2.CAP_PROP_FRAME_WIDTH))
+    crop_bounds_my = compute_crop_bounds(lands_data, w, h)
+    crop_bounds_pro = compute_crop_bounds(lands_data2, w2, h2)
 
     # Slider de velocidade de reprodução
     play_speed = st.sidebar.slider("Velocidade do Play (seg)", 0.01, 0.5, 0.1)
@@ -171,8 +222,13 @@ if video and video2:
                 a2 = st.session_state.precomputed[i]["pro"][idx2_safe]
                 frame1 = annotate_angle(frame1, a1, lands_data[idx1_safe].landmark, ap_tup[1], h, w)
                 frame2 = annotate_angle(frame2, a2, lands_data2[idx2_safe].landmark, ap_tup[1], h2, w2)
-            ph1.image(frame1, channels="RGB", use_container_width=True)
-            ph2.image(frame2, channels="RGB", use_container_width=True)
+            #ph1.image(frame1, channels="RGB", use_container_width=True)
+            #ph2.image(frame2, channels="RGB", use_container_width=True)
+            frame1 = crop_and_resize(frame1, crop_bounds_my, target_height=max_video_height)
+            frame2 = crop_and_resize(frame2, crop_bounds_pro, target_height=max_video_height)
+            ph1.image(frame1, channels="RGB")
+            ph2.image(frame2, channels="RGB")
+
 
     # === Modo de reprodução automática ===
     while st.session_state["is_playing"]:
@@ -206,6 +262,10 @@ if video and video2:
             a2 = st.session_state.precomputed[i]["pro"][idx2_safe]
             frame1 = annotate_angle(frame1, a1, lands_data[idx1_safe].landmark, ap_tup[1], h, w)
             frame2 = annotate_angle(frame2, a2, lands_data2[idx2_safe].landmark, ap_tup[1], h2, w2)
-        ph1.image(frame1, channels="RGB", use_container_width=True)
-        ph2.image(frame2, channels="RGB", use_container_width=True)
+        #ph1.image(frame1, channels="RGB", use_container_width=True)
+        #ph2.image(frame2, channels="RGB", use_container_width=True)
+        frame1 = crop_and_resize(frame1, crop_bounds_my, target_height=max_video_height)
+        frame2 = crop_and_resize(frame2, crop_bounds_pro, target_height=max_video_height)
+        ph1.image(frame1, channels="RGB")
+        ph2.image(frame2, channels="RGB")
         time.sleep(play_speed)
