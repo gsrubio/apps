@@ -14,7 +14,7 @@ onnxruntime==1.16.0
 onnxsim==0.4.36
 opencv_contrib_python==4.10.0.84
 opencv-python-headless==4.9.0.80
-opencv_python==4.10.0.84
+#opencv_python==4.10.0.84
 openvino==2024.3.0
 # paddle==1.0.2   <-- REMOVE or update this line
 pandas==2.2.2
