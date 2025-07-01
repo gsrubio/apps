@@ -3,11 +3,13 @@ import streamlit as st
 import os
 import cv2
 import pickle
+#import mediapipe as mp
 import pandas as pd
 import numpy as np
 import math
 import time
 import tempfile
+import io
 
 # === Configuração inicial ===
 st.set_page_config(layout="wide")  # Layout da página no modo largo
@@ -23,11 +25,13 @@ for key in ["idx", "idx2", "is_playing", "angles_hist", "precomputed", "fps_my",
             st.session_state[key] = {}  # Dicionários para guardar dados de ângulo, FPS, etc.
 
 # === Funções para carregar dados ===
-@st.cache_resource
 def load_data_from_upload(landmark_file, landmark_file2):
-    # Carrega os dados de landmarks (pontos do corpo) pré-computados dos uploads
-    lands_data = pickle.load(landmark_file)
-    lands_data2 = pickle.load(landmark_file2)
+    # Read the uploaded files into bytes
+    landmark_bytes = landmark_file.read()
+    landmark2_bytes = landmark_file2.read()
+    # Load from bytes using BytesIO
+    lands_data = pickle.load(io.BytesIO(landmark_bytes))
+    lands_data2 = pickle.load(io.BytesIO(landmark2_bytes))
     return lands_data, lands_data2
 
 @st.cache_resource
@@ -170,16 +174,20 @@ if (video_file, video_file2, landmark_file, landmark_file2) != st.session_state[
 if video_file and video_file2 and landmark_file and landmark_file2:
     # Dicionário de partes do corpo e pontos de referência para ângulo
     angle_parts = {
-        "right arm": (12, 14, 16),
-        "left arm": (11, 13, 15),
-        "right leg": (24, 26, 28),
-        "left leg": (23, 25, 27),
-        "right_torso": (12, 24, 26),
-        "left_torso": (11, 23, 25)
+        "pulso direito": (12, 14, 16),
+        "pulso esquerdo": (11, 13, 15),
+        "cotovelo direito": (0, 0, 14),
+        "cotovelo esquerdo": (0, 0, 13),
+        "ombro direito": (0, 0, 12),
+        "ombro esquerdo": (0, 0, 11),
+        #"right leg": (24, 26, 28),
+        #"left leg": (23, 25, 27),
+        #"right_torso": (12, 24, 26),
+        #"left_torso": (11, 23, 25)
     }
-
+    
     # Seleção das partes a serem medidas
-    ap = st.multiselect("Angle on", angle_parts.keys(), ["right arm"])
+    ap = st.multiselect("Angle on", angle_parts.keys(), ["pulso direito"])
 
     # Carrega landmarks e vídeos dos uploads
     lands_data, lands_data2 = load_data_from_upload(landmark_file, landmark_file2)
@@ -227,10 +235,10 @@ if video_file and video_file2 and landmark_file and landmark_file2:
                 frame2 = draw_shadow(frame2, lands_data2, st.session_state["idx2"], ap_tup[2], h2, w2)
                 idx1_safe = min(st.session_state["idx"], len(st.session_state.precomputed[i]["my"]) - 1)
                 idx2_safe = min(st.session_state["idx2"], len(st.session_state.precomputed[i]["pro"]) - 1)
-                a1 = st.session_state.precomputed[i]["my"][idx1_safe]
-                a2 = st.session_state.precomputed[i]["pro"][idx2_safe]
-                frame1 = annotate_angle(frame1, a1, lands_data[idx1_safe].landmark, ap_tup[1], h, w)
-                frame2 = annotate_angle(frame2, a2, lands_data2[idx2_safe].landmark, ap_tup[1], h2, w2)
+                #a1 = st.session_state.precomputed[i]["my"][idx1_safe]
+                #a2 = st.session_state.precomputed[i]["pro"][idx2_safe]
+                #frame1 = annotate_angle(frame1, a1, lands_data[idx1_safe].landmark, ap_tup[1], h, w)
+                #frame2 = annotate_angle(frame2, a2, lands_data2[idx2_safe].landmark, ap_tup[1], h2, w2)
             frame1 = crop_and_resize(frame1, crop_bounds_my, target_height=max_video_height)
             frame2 = crop_and_resize(frame2, crop_bounds_pro, target_height=max_video_height)
             ph1.image(frame1, channels="RGB")
@@ -264,10 +272,10 @@ if video_file and video_file2 and landmark_file and landmark_file2:
             frame2 = draw_shadow(frame2, lands_data2, st.session_state["idx2"], ap_tup[2], h2, w2)
             idx1_safe = min(st.session_state["idx"], len(st.session_state.precomputed[i]["my"]) - 1)
             idx2_safe = min(st.session_state["idx2"], len(st.session_state.precomputed[i]["pro"]) - 1)
-            a1 = st.session_state.precomputed[i]["my"][idx1_safe]
-            a2 = st.session_state.precomputed[i]["pro"][idx2_safe]
-            frame1 = annotate_angle(frame1, a1, lands_data[idx1_safe].landmark, ap_tup[1], h, w)
-            frame2 = annotate_angle(frame2, a2, lands_data2[idx2_safe].landmark, ap_tup[1], h2, w2)
+            #a1 = st.session_state.precomputed[i]["my"][idx1_safe]
+            #a2 = st.session_state.precomputed[i]["pro"][idx2_safe]
+            #frame1 = annotate_angle(frame1, a1, lands_data[idx1_safe].landmark, ap_tup[1], h, w)
+            #frame2 = annotate_angle(frame2, a2, lands_data2[idx2_safe].landmark, ap_tup[1], h2, w2)
         frame1 = crop_and_resize(frame1, crop_bounds_my, target_height=max_video_height)
         frame2 = crop_and_resize(frame2, crop_bounds_pro, target_height=max_video_height)
         ph1.image(frame1, channels="RGB")
