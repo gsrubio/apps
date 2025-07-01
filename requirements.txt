@@ -3,7 +3,6 @@ comet_ml==3.45.0
 coremltools==7.2
 Flask==3.0.3
 GitPython==3.1.43
-GitPython==3.1.43
 ipython==8.12.3
 matplotlib==3.9.2
 mediapipe==0.10.14
@@ -24,7 +23,6 @@ Pillow==10.4.0
 plotly==5.24.0
 psutil==5.9.8
 pycocotools==2.0.8
-PyYAML==6.0.1
 PyYAML==6.0.2
 Requests==2.32.3
 scipy==1.14.1
