@@ -25,13 +25,13 @@ for key in ["idx", "idx2", "is_playing", "angles_hist", "precomputed", "fps_my",
             st.session_state[key] = {}  # Dicionários para guardar dados de ângulo, FPS, etc.
 
 # === Funções para carregar dados ===
-def load_data_from_upload(landmark_file, landmark_file2):
-    # Read the uploaded files into bytes
-    landmark_bytes = landmark_file.read()
-    landmark2_bytes = landmark_file2.read()
-    # Load from bytes using BytesIO
-    lands_data = pickle.load(io.BytesIO(landmark_bytes))
-    lands_data2 = pickle.load(io.BytesIO(landmark2_bytes))
+def load_data_from_upload():
+    try:
+        lands_data = pickle.load(io.BytesIO(st.session_state["landmark_bytes"]))
+        lands_data2 = pickle.load(io.BytesIO(st.session_state["landmark2_bytes"]))
+    except Exception as e:
+        st.error(f"Failed to load landmark files. Error: {e}")
+        st.stop()
     return lands_data, lands_data2
 
 @st.cache_resource
@@ -163,6 +163,14 @@ if not (video_file and video_file2 and landmark_file and landmark_file2):
     st.warning("Por favor, faça upload de ambos os vídeos e arquivos de landmarks para continuar.")
     st.stop()
 
+# Store landmark bytes in session state to avoid file pointer issues
+if "landmark_bytes" not in st.session_state or st.session_state.get("landmark_file_id") != id(landmark_file):
+    st.session_state["landmark_bytes"] = landmark_file.read()
+    st.session_state["landmark_file_id"] = id(landmark_file)
+if "landmark2_bytes" not in st.session_state or st.session_state.get("landmark_file2_id") != id(landmark_file2):
+    st.session_state["landmark2_bytes"] = landmark_file2.read()
+    st.session_state["landmark_file2_id"] = id(landmark_file2)
+
 # Após upload dos arquivos:
 if "last_loaded_videos" not in st.session_state:
     st.session_state["last_loaded_videos"] = (None, None, None, None)
@@ -190,7 +198,7 @@ if video_file and video_file2 and landmark_file and landmark_file2:
     ap = st.multiselect("Angle on", angle_parts.keys(), ["pulso direito"])
 
     # Carrega landmarks e vídeos dos uploads
-    lands_data, lands_data2 = load_data_from_upload(landmark_file, landmark_file2)
+    lands_data, lands_data2 = load_data_from_upload()
     cap = load_videos_from_upload(video_file, video_file2)
 
     # Desenha controles interativos
