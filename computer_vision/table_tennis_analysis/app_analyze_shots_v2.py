@@ -8,11 +8,11 @@ import pandas as pd
 import numpy as np
 import math
 import time
-import tempfile
-import io
 
 # === Configuração inicial ===
+mp_pose = mp.solutions.pose
 st.set_page_config(layout="wide")  # Layout da página no modo largo
+folder = 'videos'  # Pasta onde os vídeos estão armazenados
 
 # === Inicialização de variáveis na sessão ===
 for key in ["idx", "idx2", "is_playing", "angles_hist", "precomputed", "fps_my", "fps_pro"]:
@@ -25,28 +25,37 @@ for key in ["idx", "idx2", "is_playing", "angles_hist", "precomputed", "fps_my",
             st.session_state[key] = {}  # Dicionários para guardar dados de ângulo, FPS, etc.
 
 # === Funções para carregar dados ===
-def load_data_from_upload():
-    try:
-        lands_data = pickle.load(io.BytesIO(st.session_state["landmark_bytes"]))
-        lands_data2 = pickle.load(io.BytesIO(st.session_state["landmark2_bytes"]))
-    except Exception as e:
-        st.error(f"Failed to load landmark files. Error: {e}")
-        st.stop()
+@st.cache_resource
+def load_data(video, video2):
+    # Carrega os dados de landmarks (pontos do corpo) pré-computados
+    with open(f"{folder}_landmarks/landmarks_{video.split('.')[0]}.pickle", 'rb') as f:
+        lands_data = pickle.load(f)
+    with open(f"{folder}_landmarks/landmarks_{video2.split('.')[0]}.pickle", 'rb') as f:
+        lands_data2 = pickle.load(f)
     return lands_data, lands_data2
 
 @st.cache_resource
-def load_videos_from_upload(video_file, video_file2):
-    # Salva os vídeos temporariamente e abre com OpenCV
-    temp1 = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4')
-    temp1.write(video_file.read())
-    temp1.flush()
-    temp2 = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4')
-    temp2.write(video_file2.read())
-    temp2.flush()
-    cap_my = cv2.VideoCapture(temp1.name)
-    cap_pro = cv2.VideoCapture(temp2.name)
-    return {"my": cap_my, "pro": cap_pro, "temp1": temp1, "temp2": temp2}
+def load_videos(video, video2):
+    # Abre os vídeos usando OpenCV
+    cap_my = cv2.VideoCapture(f'{folder}/{video}')
+    cap_pro = cv2.VideoCapture(f'{folder}/{video2}')
+    return {"my": cap_my, "pro": cap_pro}
 
+# === Função de cálculo de ângulo entre três pontos ===
+#def calc_angle(landmark, p1, p2, p3):
+#    x1, y1 = landmark[p1].x, landmark[p1].y
+#    x2, y2 = landmark[p2].x, landmark[p2].y
+#    x3, y3 = landmark[p3].x, landmark[p3].y
+
+    # Calcula os lados do triângulo
+ #   a = math.sqrt((x1 - x2)**2 + (y1 - y2)**2)
+ #   b = math.sqrt((x2 - x3)**2 + (y2 - y3)**2)
+ #   c = math.sqrt((x3 - x1)**2 + (y3 - y1)**2)
+
+    # Aplica a Lei dos Cossenos para obter o ângulo
+  #  cos_gamma = (a**2 + b**2 - c**2) / (2 * a * b)
+  #  angle = math.degrees(math.acos(np.clip(cos_gamma, -1.0, 1.0)))
+  #  return angle
 
 # === Função para desenhar a "sombra" (trajetória) do movimento ===
 def draw_shadow(frame, lands_data, idx, bp, h, w):
@@ -134,37 +143,27 @@ def crop_and_resize(frame, crop_bounds, target_height=600):
     return resized
 
 # === Lógica principal do app ===
-# Uploaders for videos and landmarks
-with st.sidebar.expander("📁 Upload Files", expanded=True):
-    video_file = st.file_uploader("Upload Main Video (.mp4)", type=["mp4"], key="main_video")
-    video_file2 = st.file_uploader("Upload Ref Video (.mp4)", type=["mp4"], key="ref_video")
-    landmark_file = st.file_uploader("Upload Main Landmarks (.pickle)", type=["pickle"], key="main_landmarks")
-    landmark_file2 = st.file_uploader("Upload Ref Landmarks (.pickle)", type=["pickle"], key="ref_landmarks")
-
+# Listagem dos vídeos disponíveis
+video_files = sorted([i for i in os.listdir(folder) if i[0] != '.'])
+video = st.sidebar.selectbox("Selecione um vídeo:", video_files)
+video2 = st.sidebar.selectbox("Selecione um vídeo de ref:", video_files, index=len(video_files)-1)
 max_video_height = st.sidebar.slider("Altura máxima dos vídeos (px)", 400, 1000, 600)
 
-# Check if all files are uploaded
-if not (video_file and video_file2 and landmark_file and landmark_file2):
-    st.warning("Por favor, faça upload de ambos os vídeos e arquivos de landmarks para continuar.")
-    st.stop()
-
-# Store landmark bytes in session state to avoid file pointer issues
-if "landmark_bytes" not in st.session_state or st.session_state.get("landmark_file_id") != id(landmark_file):
-    st.session_state["landmark_bytes"] = landmark_file.read()
-    st.session_state["landmark_file_id"] = id(landmark_file)
-if "landmark2_bytes" not in st.session_state or st.session_state.get("landmark_file2_id") != id(landmark_file2):
-    st.session_state["landmark2_bytes"] = landmark_file2.read()
-    st.session_state["landmark_file2_id"] = id(landmark_file2)
-
-# Após upload dos arquivos:
+# Após selecionar video e video2:
 if "last_loaded_videos" not in st.session_state:
-    st.session_state["last_loaded_videos"] = (None, None, None, None)
+    st.session_state["last_loaded_videos"] = ("", "")
 
-if (video_file, video_file2, landmark_file, landmark_file2) != st.session_state["last_loaded_videos"]:
+# --- Bookmark logic: reset bookmarks if videos change ---
+if (video, video2) != st.session_state["last_loaded_videos"]:
     st.session_state["precomputed"] = {}  # Limpa ângulos pré-calculados
-    st.session_state["last_loaded_videos"] = (video_file, video_file2, landmark_file, landmark_file2)
+    st.session_state["last_loaded_videos"] = (video, video2)
+    st.session_state["bookmarks"] = []  # Reset bookmarks when videos change
 
-if video_file and video_file2 and landmark_file and landmark_file2:
+# Initialize bookmarks if not present
+if "bookmarks" not in st.session_state:
+    st.session_state["bookmarks"] = []
+
+if video and video2:
     # Dicionário de partes do corpo e pontos de referência para ângulo
     angle_parts = {
         "pulso direito": (12, 14, 16),
@@ -178,16 +177,21 @@ if video_file and video_file2 and landmark_file and landmark_file2:
         #"right_torso": (12, 24, 26),
         #"left_torso": (11, 23, 25)
     }
-    
-    # Seleção das partes a serem medidas
-    ap = st.multiselect("Angle on", angle_parts.keys(), ["pulso direito"])
 
-    # Carrega landmarks e vídeos dos uploads
-    lands_data, lands_data2 = load_data_from_upload()
-    cap = load_videos_from_upload(video_file, video_file2)
+    # Seleção das partes a serem medidas
+    ap = st.multiselect("Tracked parts", angle_parts.keys(), ["pulso direito"])
+
+    # Carrega landmarks e vídeos
+    lands_data, lands_data2 = load_data(video, video2)
+    cap = load_videos(video, video2)
 
     # Desenha controles interativos
     draw_sidebar(lands_data, lands_data2)
+
+    # --- Bookmark Button ---
+    if st.sidebar.button("🔖 Bookmark Current Frames"):
+        # Save current frame indices as a tuple
+        st.session_state["bookmarks"].append((st.session_state["idx"], st.session_state["idx2"]))
 
     # Salva os FPS dos vídeos
     st.session_state.fps_my = cap["my"].get(cv2.CAP_PROP_FPS)
@@ -204,6 +208,14 @@ if video_file and video_file2 and landmark_file and landmark_file2:
     # Slider de velocidade de reprodução
     play_speed = st.sidebar.slider("Velocidade do Play (seg)", 0.01, 0.5, 0.1)
 
+    # Pré-computação de ângulos se ainda não feita
+    #if ap and ap[0] not in st.session_state.precomputed:
+    #    i = ap[0]
+    #    ap_tup = angle_parts[i]
+    #    my_series = [calc_angle(frame.landmark, *ap_tup) for frame in lands_data]
+    #    pro_series = [calc_angle(frame.landmark, *ap_tup) for frame in lands_data2]
+    #    st.session_state.precomputed[i] = {"my": my_series, "pro": pro_series}
+
     # === Modo parado (visualização estática) ===
     if not st.session_state["is_playing"]:
         cap["my"].set(cv2.CAP_PROP_POS_FRAMES, st.session_state["idx"])
@@ -218,10 +230,37 @@ if video_file and video_file2 and landmark_file and landmark_file2:
                 ap_tup = angle_parts[i]
                 frame1 = draw_shadow(frame1, lands_data, st.session_state["idx"], ap_tup[2], h, w)
                 frame2 = draw_shadow(frame2, lands_data2, st.session_state["idx2"], ap_tup[2], h2, w2)
+                #idx1_safe = min(st.session_state["idx"], len(st.session_state.precomputed[i]["my"]) - 1)
+                #idx2_safe = min(st.session_state["idx2"], len(st.session_state.precomputed[i]["pro"]) - 1)
+                #a1 = st.session_state.precomputed[i]["my"][idx1_safe]
+                #a2 = st.session_state.precomputed[i]["pro"][idx2_safe]
+                #frame1 = annotate_angle(frame1, a1, lands_data[idx1_safe].landmark, ap_tup[1], h, w)
+                #frame2 = annotate_angle(frame2, a2, lands_data2[idx2_safe].landmark, ap_tup[1], h2, w2)
+            #ph1.image(frame1, channels="RGB", use_container_width=True)
+            #ph2.image(frame2, channels="RGB", use_container_width=True)
             frame1 = crop_and_resize(frame1, crop_bounds_my, target_height=max_video_height)
             frame2 = crop_and_resize(frame2, crop_bounds_pro, target_height=max_video_height)
             ph1.image(frame1, channels="RGB")
             ph2.image(frame2, channels="RGB")
+
+    # === Bookmarked Frames Display ===
+    if st.session_state["bookmarks"]:
+        st.markdown("---")
+        st.markdown(f"### Bookmarked Frame Pairs ({len(st.session_state['bookmarks'])})")
+        for i, (idx1, idx2) in enumerate(st.session_state["bookmarks"], 1):
+            # Seek to bookmarked frames
+            cap["my"].set(cv2.CAP_PROP_POS_FRAMES, idx1)
+            cap["pro"].set(cv2.CAP_PROP_POS_FRAMES, idx2)
+            ret1, frame1 = cap["my"].read()
+            ret2, frame2 = cap["pro"].read()
+            if ret1 and ret2:
+                frame1 = cv2.cvtColor(frame1, cv2.COLOR_BGR2RGB)
+                frame2 = cv2.cvtColor(frame2, cv2.COLOR_BGR2RGB)
+                frame1 = crop_and_resize(frame1, crop_bounds_my, target_height=max_video_height)
+                frame2 = crop_and_resize(frame2, crop_bounds_pro, target_height=max_video_height)
+                cols = st.columns(2)
+                cols[0].image(frame1, channels="RGB", caption=f"Main Video - Frame {idx1}")
+                cols[1].image(frame2, channels="RGB", caption=f"Ref Video - Frame {idx2}")
 
     # === Modo de reprodução automática ===
     # Calculate frame steps based on FPS
@@ -249,6 +288,14 @@ if video_file and video_file2 and landmark_file and landmark_file2:
             ap_tup = angle_parts[i]
             frame1 = draw_shadow(frame1, lands_data, st.session_state["idx"], ap_tup[2], h, w)
             frame2 = draw_shadow(frame2, lands_data2, st.session_state["idx2"], ap_tup[2], h2, w2)
+            #idx1_safe = min(st.session_state["idx"], len(st.session_state.precomputed[i]["my"]) - 1)
+            #idx2_safe = min(st.session_state["idx2"], len(st.session_state.precomputed[i]["pro"]) - 1)
+            #a1 = st.session_state.precomputed[i]["my"][idx1_safe]
+            #a2 = st.session_state.precomputed[i]["pro"][idx2_safe]
+            #frame1 = annotate_angle(frame1, a1, lands_data[idx1_safe].landmark, ap_tup[1], h, w)
+            #frame2 = annotate_angle(frame2, a2, lands_data2[idx2_safe].landmark, ap_tup[1], h2, w2)
+        #ph1.image(frame1, channels="RGB", use_container_width=True)
+        #ph2.image(frame2, channels="RGB", use_container_width=True)
         frame1 = crop_and_resize(frame1, crop_bounds_my, target_height=max_video_height)
         frame2 = crop_and_resize(frame2, crop_bounds_pro, target_height=max_video_height)
         ph1.image(frame1, channels="RGB")

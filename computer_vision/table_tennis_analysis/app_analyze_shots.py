@@ -3,7 +3,7 @@ import streamlit as st
 import os
 import cv2
 import pickle
-#import mediapipe as mp
+import mediapipe as mp
 import pandas as pd
 import numpy as np
 import math
@@ -40,21 +40,6 @@ def load_videos(video, video2):
     cap_pro = cv2.VideoCapture(f'{folder}/{video2}')
     return {"my": cap_my, "pro": cap_pro}
 
-# === Função de cálculo de ângulo entre três pontos ===
-def calc_angle(landmark, p1, p2, p3):
-    x1, y1 = landmark[p1].x, landmark[p1].y
-    x2, y2 = landmark[p2].x, landmark[p2].y
-    x3, y3 = landmark[p3].x, landmark[p3].y
-
-    # Calcula os lados do triângulo
-    a = math.sqrt((x1 - x2)**2 + (y1 - y2)**2)
-    b = math.sqrt((x2 - x3)**2 + (y2 - y3)**2)
-    c = math.sqrt((x3 - x1)**2 + (y3 - y1)**2)
-
-    # Aplica a Lei dos Cossenos para obter o ângulo
-    cos_gamma = (a**2 + b**2 - c**2) / (2 * a * b)
-    angle = math.degrees(math.acos(np.clip(cos_gamma, -1.0, 1.0)))
-    return angle
 
 # === Função para desenhar a "sombra" (trajetória) do movimento ===
 def draw_shadow(frame, lands_data, idx, bp, h, w):
@@ -74,31 +59,31 @@ def annotate_angle(frame, angle, landmark, p2, h, w):
 # === Função que cria os controles na barra lateral ===
 def draw_sidebar(landmarks, landmarks2):
     expander_frame = st.sidebar.expander("🎛️ Frame Controller", True)
-    slider_play = expander_frame.empty()
-    slider_ref_play = expander_frame.empty()
+    #slider_play = expander_frame.empty()
+    #slider_ref_play = expander_frame.empty()
     col3, col4 = expander_frame.columns(2)
     col7, col8 = st.sidebar.columns(2)
 
     # Controles de navegação manual por frame
-    if col3.button('-1'):  # Retroceder vídeo principal
+    if col3.button('⏮ Video 1'):  # Retroceder vídeo principal
         st.session_state.idx = max(st.session_state.idx - 1, 0)
-    if col4.button('+1'):  # Avançar vídeo principal
+    if col4.button('⏭ Video 1'):  # Avançar vídeo principal
         st.session_state.idx = min(st.session_state.idx + 1, len(landmarks)-1)
-    if col3.button('-1 R'):  # Retroceder vídeo de referência
+    if col3.button('⏮ Video 2'):  # Retroceder vídeo de referência
         st.session_state.idx2 = max(st.session_state.idx2 - 1, 0)
-    if col4.button('+1 R'):  # Avançar vídeo de referência
+    if col4.button('⏭ Video 2'):  # Avançar vídeo de referência
         st.session_state.idx2 = min(st.session_state.idx2 + 1, len(landmarks2)-1)
-    if col3.button('Voltar'):
+    if col3.button('⏪ Ambos'):
         st.session_state.is_playing = False
         st.session_state.idx = max(st.session_state.idx - 1, 0)
         st.session_state.idx2 = max(st.session_state.idx2 - 1, 0)
-    if col4.button('Avançar'):
+    if col4.button('⏩ Ambos'):
         st.session_state.is_playing = False
         st.session_state.idx = min(st.session_state.idx + 1, len(landmarks)-1)
         st.session_state.idx2 = min(st.session_state.idx2 + 1, len(landmarks2)-1)
 
     # Botão único de Play/Pause
-    if col7.button('Play / Pause'):
+    if col7.button('⏯️ Play/Pause'):
         st.session_state.is_playing = not st.session_state.is_playing
 
     # Botão de Reset
@@ -107,8 +92,8 @@ def draw_sidebar(landmarks, landmarks2):
         st.session_state.idx2 = 0
 
     # Sliders sincronizados para navegar nos frames
-    st.session_state["idx"] = slider_play.slider('Main Video', 0, len(landmarks) - 1, st.session_state["idx"])
-    st.session_state["idx2"] = slider_ref_play.slider('Ref Video', 0, len(landmarks2) - 1, st.session_state["idx2"])
+    #st.session_state["idx"] = slider_play.slider('Main Video', 0, len(landmarks) - 1, st.session_state["idx"])
+    #st.session_state["idx2"] = slider_ref_play.slider('Ref Video', 0, len(landmarks2) - 1, st.session_state["idx2"])
 
 # === Função para recortar e redimensionar video ===
 def compute_crop_bounds(landmarks, width, height):
@@ -197,14 +182,6 @@ if video and video2:
     # Slider de velocidade de reprodução
     play_speed = st.sidebar.slider("Velocidade do Play (seg)", 0.01, 0.5, 0.1)
 
-    # Pré-computação de ângulos se ainda não feita
-    if ap and ap[0] not in st.session_state.precomputed:
-        i = ap[0]
-        ap_tup = angle_parts[i]
-        my_series = [calc_angle(frame.landmark, *ap_tup) for frame in lands_data]
-        pro_series = [calc_angle(frame.landmark, *ap_tup) for frame in lands_data2]
-        st.session_state.precomputed[i] = {"my": my_series, "pro": pro_series}
-
     # === Modo parado (visualização estática) ===
     if not st.session_state["is_playing"]:
         cap["my"].set(cv2.CAP_PROP_POS_FRAMES, st.session_state["idx"])
@@ -219,14 +196,6 @@ if video and video2:
                 ap_tup = angle_parts[i]
                 frame1 = draw_shadow(frame1, lands_data, st.session_state["idx"], ap_tup[2], h, w)
                 frame2 = draw_shadow(frame2, lands_data2, st.session_state["idx2"], ap_tup[2], h2, w2)
-                idx1_safe = min(st.session_state["idx"], len(st.session_state.precomputed[i]["my"]) - 1)
-                idx2_safe = min(st.session_state["idx2"], len(st.session_state.precomputed[i]["pro"]) - 1)
-                #a1 = st.session_state.precomputed[i]["my"][idx1_safe]
-                #a2 = st.session_state.precomputed[i]["pro"][idx2_safe]
-                #frame1 = annotate_angle(frame1, a1, lands_data[idx1_safe].landmark, ap_tup[1], h, w)
-                #frame2 = annotate_angle(frame2, a2, lands_data2[idx2_safe].landmark, ap_tup[1], h2, w2)
-            #ph1.image(frame1, channels="RGB", use_container_width=True)
-            #ph2.image(frame2, channels="RGB", use_container_width=True)
             frame1 = crop_and_resize(frame1, crop_bounds_my, target_height=max_video_height)
             frame2 = crop_and_resize(frame2, crop_bounds_pro, target_height=max_video_height)
             ph1.image(frame1, channels="RGB")
@@ -234,14 +203,14 @@ if video and video2:
 
 
     # === Modo de reprodução automática ===
+    # Calculate frame steps based on FPS
+    step_my = max(1, round(st.session_state.fps_my / min(st.session_state.fps_my, st.session_state.fps_pro)))
+    step_pro = max(1, round(st.session_state.fps_pro / min(st.session_state.fps_my, st.session_state.fps_pro)))
+    
     while st.session_state["is_playing"]:
-        if st.session_state["idx"] < len(lands_data)-1:
-            st.session_state["idx"] += 1
-
-        # Sincroniza segundo vídeo com base no tempo do primeiro
-        time_sec = st.session_state["idx"] / st.session_state.fps_my
-        idx2_sync = int(time_sec * st.session_state.fps_pro)
-        st.session_state["idx2"] = min(idx2_sync, len(lands_data2)-1)
+        # Advance frames, clamping to the last frame
+        st.session_state["idx"] = min(st.session_state["idx"] + step_my, len(lands_data)-1)
+        st.session_state["idx2"] = min(st.session_state["idx2"] + step_pro, len(lands_data2)-1)
 
         # Lê os frames sincronizados
         cap["my"].set(cv2.CAP_PROP_POS_FRAMES, st.session_state["idx"])
@@ -259,14 +228,6 @@ if video and video2:
             ap_tup = angle_parts[i]
             frame1 = draw_shadow(frame1, lands_data, st.session_state["idx"], ap_tup[2], h, w)
             frame2 = draw_shadow(frame2, lands_data2, st.session_state["idx2"], ap_tup[2], h2, w2)
-            idx1_safe = min(st.session_state["idx"], len(st.session_state.precomputed[i]["my"]) - 1)
-            idx2_safe = min(st.session_state["idx2"], len(st.session_state.precomputed[i]["pro"]) - 1)
-            #a1 = st.session_state.precomputed[i]["my"][idx1_safe]
-            #a2 = st.session_state.precomputed[i]["pro"][idx2_safe]
-            #frame1 = annotate_angle(frame1, a1, lands_data[idx1_safe].landmark, ap_tup[1], h, w)
-            #frame2 = annotate_angle(frame2, a2, lands_data2[idx2_safe].landmark, ap_tup[1], h2, w2)
-        #ph1.image(frame1, channels="RGB", use_container_width=True)
-        #ph2.image(frame2, channels="RGB", use_container_width=True)
         frame1 = crop_and_resize(frame1, crop_bounds_my, target_height=max_video_height)
         frame2 = crop_and_resize(frame2, crop_bounds_pro, target_height=max_video_height)
         ph1.image(frame1, channels="RGB")
