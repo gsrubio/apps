@@ -33,22 +33,6 @@ def load_videos_from_upload(video_file, video_file2):
     cap_pro = cv2.VideoCapture(temp2.name)
     return {"my": cap_my, "pro": cap_pro, "temp1": temp1, "temp2": temp2}
 
-# === Função para aplicar zoom/crop ===
-def apply_zoom_crop(frame, zoom_percentage):
-    if zoom_percentage >= 100:
-        return frame
-    
-    h, w = frame.shape[:2]
-    crop_amount = (100 - zoom_percentage) / 100.0
-    
-    # Calculate crop boundaries
-    crop_x = int(w * crop_amount / 2)
-    crop_y = int(h * crop_amount / 2)
-    
-    # Crop the frame from all sides
-    cropped = frame[crop_y:h-crop_y, crop_x:w-crop_x]
-    return cropped
-
 # === Função que cria os controles na barra lateral ===
 def draw_sidebar(total_frames1, total_frames2):
     expander_frame = st.sidebar.expander("🎛️ Frame Controller", True)
@@ -90,8 +74,6 @@ with st.sidebar.expander("📁 Upload Files", expanded=True):
 
 with st.sidebar.expander("🎛️ Video Settings", expanded=False):
     max_video_height = st.slider("Altura máxima dos vídeos (px)", 100, 1000, 600)
-    zoom_percentage1 = st.slider("Zoom (%) Video 1", 50, 100, 100, help="100% = full frame, lower values crop from all sides")
-    zoom_percentage2 = st.slider("Zoom (%) Video 2", 50, 100, 100, help="100% = full frame, lower values crop from all sides")
 
 # Check if videos are uploaded
 if not (video_file and video_file2):
@@ -131,10 +113,6 @@ if video_file and video_file2:
             frame1 = cv2.cvtColor(frame1, cv2.COLOR_BGR2RGB)
             frame2 = cv2.cvtColor(frame2, cv2.COLOR_BGR2RGB)
             
-            # Apply zoom/crop effect
-            frame1 = apply_zoom_crop(frame1, zoom_percentage1)
-            frame2 = apply_zoom_crop(frame2, zoom_percentage2)
-            
             # Resize frames to match max height while maintaining aspect ratio
             h1, w1 = frame1.shape[:2]
             h2, w2 = frame2.shape[:2]
@@ -170,10 +148,6 @@ if video_file and video_file2:
 
         frame1 = cv2.cvtColor(frame1, cv2.COLOR_BGR2RGB)
         frame2 = cv2.cvtColor(frame2, cv2.COLOR_BGR2RGB)
-        
-        # Apply zoom/crop effect
-        frame1 = apply_zoom_crop(frame1, zoom_percentage1)
-        frame2 = apply_zoom_crop(frame2, zoom_percentage2)
         
         # Resize frames to match max height while maintaining aspect ratio
         h1, w1 = frame1.shape[:2]
