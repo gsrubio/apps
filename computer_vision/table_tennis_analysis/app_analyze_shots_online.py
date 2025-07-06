@@ -2,11 +2,6 @@
 import streamlit as st
 import os
 import cv2
-import pickle
-import mediapipe as mp
-import pandas as pd
-import numpy as np
-import math
 import time
 import tempfile
 import io
@@ -15,7 +10,7 @@ import io
 st.set_page_config(layout="wide")  # Layout da página no modo largo
 
 # === Inicialização de variáveis na sessão ===
-for key in ["idx", "idx2", "is_playing", "angles_hist", "precomputed", "fps_my", "fps_pro"]:
+for key in ["idx", "idx2", "is_playing", "fps_my", "fps_pro"]:
     if key not in st.session_state:
         if key in ["idx", "idx2"]:
             st.session_state[key] = 0  # Índices de frame para cada vídeo
@@ -24,15 +19,6 @@ for key in ["idx", "idx2", "is_playing", "angles_hist", "precomputed", "fps_my",
         else:
             st.session_state[key] = {}  # Dicionários para guardar dados de ângulo, FPS, etc.
 
-# === Funções para carregar dados ===
-def load_data_from_upload():
-    try:
-        lands_data = pickle.load(io.BytesIO(st.session_state["landmark_bytes"]))
-        lands_data2 = pickle.load(io.BytesIO(st.session_state["landmark2_bytes"]))
-    except Exception as e:
-        st.error(f"Failed to load landmark files. Error: {e}")
-        st.stop()
-    return lands_data, lands_data2
 
 @st.cache_resource
 def load_videos_from_upload(video_file, video_file2):
@@ -47,27 +33,25 @@ def load_videos_from_upload(video_file, video_file2):
     cap_pro = cv2.VideoCapture(temp2.name)
     return {"my": cap_my, "pro": cap_pro, "temp1": temp1, "temp2": temp2}
 
-
-# === Função para desenhar a "sombra" (trajetória) do movimento ===
-def draw_shadow(frame, lands_data, idx, bp, h, w):
-    line_points = [(int(i.landmark[bp].x * w), int(i.landmark[bp].y * h)) for i in lands_data[:idx]]
-    trajectory_color = (200, 200, 50)
-    for i in range(1, len(line_points)):
-        thickness = int(np.sqrt(30 / float(i + 1)) * 2.5)
-        cv2.line(frame, line_points[i - 1], line_points[i], trajectory_color, thickness)
-    return frame
-
-# === Função para anotar o ângulo calculado no vídeo ===
-def annotate_angle(frame, angle, landmark, p2, h, w):
-    position = (int(landmark[p2].x * w + 10), int(landmark[p2].y * h + 10))
-    cv2.putText(frame, str(int(angle)), position, cv2.FONT_HERSHEY_PLAIN, 2, (0,255,255), 2)
-    return frame
+# === Função para aplicar zoom/crop ===
+def apply_zoom_crop(frame, zoom_percentage):
+    if zoom_percentage >= 100:
+        return frame
+    
+    h, w = frame.shape[:2]
+    crop_amount = (100 - zoom_percentage) / 100.0
+    
+    # Calculate crop boundaries
+    crop_x = int(w * crop_amount / 2)
+    crop_y = int(h * crop_amount / 2)
+    
+    # Crop the frame from all sides
+    cropped = frame[crop_y:h-crop_y, crop_x:w-crop_x]
+    return cropped
 
 # === Função que cria os controles na barra lateral ===
-def draw_sidebar(landmarks, landmarks2):
+def draw_sidebar(total_frames1, total_frames2):
     expander_frame = st.sidebar.expander("🎛️ Frame Controller", True)
-    #slider_play = expander_frame.empty()
-    #slider_ref_play = expander_frame.empty()
     col3, col4 = expander_frame.columns(2)
     col7, col8 = st.sidebar.columns(2)
 
@@ -75,19 +59,19 @@ def draw_sidebar(landmarks, landmarks2):
     if col3.button('⏮ Video 1'):  # Retroceder vídeo principal
         st.session_state.idx = max(st.session_state.idx - 1, 0)
     if col4.button('⏭ Video 1'):  # Avançar vídeo principal
-        st.session_state.idx = min(st.session_state.idx + 1, len(landmarks)-1)
+        st.session_state.idx = min(st.session_state.idx + 1, total_frames1-1)
     if col3.button('⏮ Video 2'):  # Retroceder vídeo de referência
         st.session_state.idx2 = max(st.session_state.idx2 - 1, 0)
     if col4.button('⏭ Video 2'):  # Avançar vídeo de referência
-        st.session_state.idx2 = min(st.session_state.idx2 + 1, len(landmarks2)-1)
+        st.session_state.idx2 = min(st.session_state.idx2 + 1, total_frames2-1)
     if col3.button('⏪ Ambos'):
         st.session_state.is_playing = False
         st.session_state.idx = max(st.session_state.idx - 1, 0)
         st.session_state.idx2 = max(st.session_state.idx2 - 1, 0)
     if col4.button('⏩ Ambos'):
         st.session_state.is_playing = False
-        st.session_state.idx = min(st.session_state.idx + 1, len(landmarks)-1)
-        st.session_state.idx2 = min(st.session_state.idx2 + 1, len(landmarks2)-1)
+        st.session_state.idx = min(st.session_state.idx + 1, total_frames1-1)
+        st.session_state.idx2 = min(st.session_state.idx2 + 1, total_frames2-1)
 
     # Botão único de Play/Pause
     if col7.button('⏯️ Play/Pause'):
@@ -98,108 +82,40 @@ def draw_sidebar(landmarks, landmarks2):
         st.session_state.idx = 0
         st.session_state.idx2 = 0
 
-    # Sliders sincronizados para navegar nos frames
-    #st.session_state["idx"] = slider_play.slider('Main Video', 0, len(landmarks) - 1, st.session_state["idx"])
-    #st.session_state["idx2"] = slider_ref_play.slider('Ref Video', 0, len(landmarks2) - 1, st.session_state["idx2"])
-
-# === Função para recortar e redimensionar video ===
-def compute_crop_bounds(landmarks, width, height):
-    xs = [lmk.x for frame in landmarks for lmk in frame.landmark]
-    ys = [lmk.y for frame in landmarks for lmk in frame.landmark]
-
-    min_x, max_x = min(xs), max(xs)
-    min_y, max_y = min(ys), max(ys)
-
-    # Adiciona % de margem
-    pad_x = (max_x - min_x) * 0.25
-    pad_y = (max_y - min_y) * 0.25
-
-    crop_left = max(0, int((min_x - pad_x) * width))
-    crop_right = min(width, int((max_x + pad_x) * width))
-    crop_top = 0 #max(0, int((min_y - pad_y) * height))
-    crop_bottom = height #min(height, int((max_y + pad_y) * height))
-
-    return crop_left, crop_right, crop_top, crop_bottom
-
-
-def crop_and_resize(frame, crop_bounds, target_height=600):
-    x1, x2, y1, y2 = crop_bounds
-    cropped = frame[y1:y2, x1:x2]
-
-    h, w = cropped.shape[:2]
-    scale = target_height / h
-    new_size = (int(w * scale), target_height)
-
-    resized = cv2.resize(cropped, new_size)
-    return resized
-
 # === Lógica principal do app ===
-# Uploaders for videos and landmarks
+# Uploaders for videos
 with st.sidebar.expander("📁 Upload Files", expanded=True):
     video_file = st.file_uploader("Upload Main Video (.mp4)", type=["mp4"], key="main_video")
     video_file2 = st.file_uploader("Upload Ref Video (.mp4)", type=["mp4"], key="ref_video")
-    landmark_file = st.file_uploader("Upload Main Landmarks (.pickle)", type=["pickle"], key="main_landmarks")
-    landmark_file2 = st.file_uploader("Upload Ref Landmarks (.pickle)", type=["pickle"], key="ref_landmarks")
 
-max_video_height = st.sidebar.slider("Altura máxima dos vídeos (px)", 400, 1000, 600)
+with st.sidebar.expander("🎛️ Video Settings", expanded=False):
+    max_video_height = st.slider("Altura máxima dos vídeos (px)", 100, 1000, 600)
+    zoom_percentage1 = st.slider("Zoom (%) Video 1", 50, 100, 100, help="100% = full frame, lower values crop from all sides")
+    zoom_percentage2 = st.slider("Zoom (%) Video 2", 50, 100, 100, help="100% = full frame, lower values crop from all sides")
 
-# Check if all files are uploaded
-if not (video_file and video_file2 and landmark_file and landmark_file2):
-    st.warning("Por favor, faça upload de ambos os vídeos e arquivos de landmarks para continuar.")
+# Check if videos are uploaded
+if not (video_file and video_file2):
+    st.warning("Por favor, faça upload dos vídeos para continuar.")
     st.stop()
 
-# Store landmark bytes in session state to avoid file pointer issues
-if "landmark_bytes" not in st.session_state or st.session_state.get("landmark_file_id") != id(landmark_file):
-    st.session_state["landmark_bytes"] = landmark_file.read()
-    st.session_state["landmark_file_id"] = id(landmark_file)
-if "landmark2_bytes" not in st.session_state or st.session_state.get("landmark_file2_id") != id(landmark_file2):
-    st.session_state["landmark2_bytes"] = landmark_file2.read()
-    st.session_state["landmark_file2_id"] = id(landmark_file2)
-
-# Após upload dos arquivos:
-if "last_loaded_videos" not in st.session_state:
-    st.session_state["last_loaded_videos"] = (None, None, None, None)
-
-if (video_file, video_file2, landmark_file, landmark_file2) != st.session_state["last_loaded_videos"]:
-    st.session_state["precomputed"] = {}  # Limpa ângulos pré-calculados
-    st.session_state["last_loaded_videos"] = (video_file, video_file2, landmark_file, landmark_file2)
-
-if video_file and video_file2 and landmark_file and landmark_file2:
-    # Dicionário de partes do corpo e pontos de referência para ângulo
-    angle_parts = {
-        "pulso direito": (12, 14, 16),
-        "pulso esquerdo": (11, 13, 15),
-        "cotovelo direito": (0, 0, 14),
-        "cotovelo esquerdo": (0, 0, 13),
-        "ombro direito": (0, 0, 12),
-        "ombro esquerdo": (0, 0, 11),
-        #"right leg": (24, 26, 28),
-        #"left leg": (23, 25, 27),
-        #"right_torso": (12, 24, 26),
-        #"left_torso": (11, 23, 25)
-    }
-    
-    # Seleção das partes a serem medidas
-    ap = st.multiselect("Angle on", angle_parts.keys(), ["pulso direito"])
-
-    # Carrega landmarks e vídeos dos uploads
-    lands_data, lands_data2 = load_data_from_upload()
+if video_file and video_file2:
+    # Carrega vídeos dos uploads
     cap = load_videos_from_upload(video_file, video_file2)
 
-    # Desenha controles interativos
-    draw_sidebar(lands_data, lands_data2)
+    # Get total frames for each video
+    total_frames1 = int(cap["my"].get(cv2.CAP_PROP_FRAME_COUNT))
+    total_frames2 = int(cap["pro"].get(cv2.CAP_PROP_FRAME_COUNT))
 
     # Salva os FPS dos vídeos
     st.session_state.fps_my = cap["my"].get(cv2.CAP_PROP_FPS)
     st.session_state.fps_pro = cap["pro"].get(cv2.CAP_PROP_FPS)
 
+    # Desenha controles interativos
+    draw_sidebar(total_frames1, total_frames2)
+
     # Prepara layout de exibição
-    col1, col2 = st.columns(2)
-    ph1, ph2 = col1.empty(), col2.empty()
-    h, w = int(cap["my"].get(cv2.CAP_PROP_FRAME_HEIGHT)), int(cap["my"].get(cv2.CAP_PROP_FRAME_WIDTH))
-    h2, w2 = int(cap["pro"].get(cv2.CAP_PROP_FRAME_HEIGHT)), int(cap["pro"].get(cv2.CAP_PROP_FRAME_WIDTH))
-    crop_bounds_my = compute_crop_bounds(lands_data, w, h)
-    crop_bounds_pro = compute_crop_bounds(lands_data2, w2, h2)
+    ph1 = st.empty()  # Container for first video
+    ph2 = st.empty()  # Container for second video
 
     # Slider de velocidade de reprodução
     play_speed = st.sidebar.slider("Velocidade do Play (seg)", 0.01, 0.5, 0.1)
@@ -214,12 +130,21 @@ if video_file and video_file2 and landmark_file and landmark_file2:
         if ret1 and ret2:
             frame1 = cv2.cvtColor(frame1, cv2.COLOR_BGR2RGB)
             frame2 = cv2.cvtColor(frame2, cv2.COLOR_BGR2RGB)
-            for i in ap:
-                ap_tup = angle_parts[i]
-                frame1 = draw_shadow(frame1, lands_data, st.session_state["idx"], ap_tup[2], h, w)
-                frame2 = draw_shadow(frame2, lands_data2, st.session_state["idx2"], ap_tup[2], h2, w2)
-            frame1 = crop_and_resize(frame1, crop_bounds_my, target_height=max_video_height)
-            frame2 = crop_and_resize(frame2, crop_bounds_pro, target_height=max_video_height)
+            
+            # Apply zoom/crop effect
+            frame1 = apply_zoom_crop(frame1, zoom_percentage1)
+            frame2 = apply_zoom_crop(frame2, zoom_percentage2)
+            
+            # Resize frames to match max height while maintaining aspect ratio
+            h1, w1 = frame1.shape[:2]
+            h2, w2 = frame2.shape[:2]
+            scale1 = max_video_height / h1
+            scale2 = max_video_height / h2
+            new_size1 = (int(w1 * scale1), max_video_height)
+            new_size2 = (int(w2 * scale2), max_video_height)
+            frame1 = cv2.resize(frame1, new_size1)
+            frame2 = cv2.resize(frame2, new_size2)
+            
             ph1.image(frame1, channels="RGB")
             ph2.image(frame2, channels="RGB")
 
@@ -230,8 +155,8 @@ if video_file and video_file2 and landmark_file and landmark_file2:
     
     while st.session_state["is_playing"]:
         # Advance frames, clamping to the last frame
-        st.session_state["idx"] = min(st.session_state["idx"] + step_my, len(lands_data)-1)
-        st.session_state["idx2"] = min(st.session_state["idx2"] + step_pro, len(lands_data2)-1)
+        st.session_state["idx"] = min(st.session_state["idx"] + step_my, total_frames1-1)
+        st.session_state["idx2"] = min(st.session_state["idx2"] + step_pro, total_frames2-1)
 
         # Lê os frames sincronizados
         cap["my"].set(cv2.CAP_PROP_POS_FRAMES, st.session_state["idx"])
@@ -245,12 +170,22 @@ if video_file and video_file2 and landmark_file and landmark_file2:
 
         frame1 = cv2.cvtColor(frame1, cv2.COLOR_BGR2RGB)
         frame2 = cv2.cvtColor(frame2, cv2.COLOR_BGR2RGB)
-        for i in ap:
-            ap_tup = angle_parts[i]
-            frame1 = draw_shadow(frame1, lands_data, st.session_state["idx"], ap_tup[2], h, w)
-            frame2 = draw_shadow(frame2, lands_data2, st.session_state["idx2"], ap_tup[2], h2, w2)
-        frame1 = crop_and_resize(frame1, crop_bounds_my, target_height=max_video_height)
-        frame2 = crop_and_resize(frame2, crop_bounds_pro, target_height=max_video_height)
+        
+        # Apply zoom/crop effect
+        frame1 = apply_zoom_crop(frame1, zoom_percentage1)
+        frame2 = apply_zoom_crop(frame2, zoom_percentage2)
+        
+        # Resize frames to match max height while maintaining aspect ratio
+        h1, w1 = frame1.shape[:2]
+        scale1 = max_video_height / h1
+        new_size1 = (int(w1 * scale1), max_video_height)
+        frame1 = cv2.resize(frame1, new_size1)
+        
+        h2, w2 = frame2.shape[:2]
+        scale2 = max_video_height / h2
+        new_size2 = (int(w2 * scale2), max_video_height)
+        frame2 = cv2.resize(frame2, new_size2)
+        
         ph1.image(frame1, channels="RGB")
         ph2.image(frame2, channels="RGB")
         time.sleep(play_speed)
