@@ -1,11 +1,13 @@
 albumentations==1.4.14
 comet_ml==3.45.0
-coremltools==7.2
+#coremltools==7.2
+coremltools
 Flask==3.0.3
 GitPython==3.1.43
 ipython==8.12.3
 matplotlib==3.9.2
 #mediapipe==0.10.14
+mediapipe
 mss==9.0.2
 nncf==2.12.0
 numpy==1.26.4
