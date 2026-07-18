@@ -233,8 +233,6 @@
   .decider-pill.me { background: var(--win-soft); color: var(--win); }
   .decider-pill.opp { background: var(--accent-soft); color: var(--accent); }
   .decider-pill.neutral { background: var(--surface-3); color: var(--muted); }
-  .rule-hint { font-size: 11px; color: var(--muted); margin-bottom: 8px; }
-  .rule-hint b { color: var(--ink-2); font-weight: 650; }
 
   /* ---------- Point list ---------- */
   .plist { margin-top: 18px; }
@@ -286,6 +284,16 @@
   .hbar .val { font-family: var(--mono); font-size: 12.5px; text-align: right; color: var(--ink-2); }
   .legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--ink-2); margin-top: 12px; }
   .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: middle; }
+
+  .splitbar { display: flex; height: 30px; border-radius: 8px; overflow: hidden; border: 1px solid var(--line); }
+  .splitbar > span { display: flex; align-items: center; justify-content: center; font-size: 11.5px; font-weight: 600; color: #fff; min-width: 0; overflow: hidden; white-space: nowrap; padding: 0 4px; }
+  .rec { display: inline-flex; gap: 6px; align-items: center; font-size: 11.5px; color: var(--win); font-weight: 600; margin-top: 12px; background: var(--win-soft); padding: 5px 10px; border-radius: 8px; }
+  .rec.warn { color: var(--loss); background: var(--loss-soft); }
+
+  .outcome-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 10px; }
+  .outcome-grid .dgh { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; margin-bottom: -1px; }
+  .outcome-grid .dgh.w { color: var(--win); } .outcome-grid .dgh.l { color: var(--loss); }
+  .outcome-grid .chip { width: 100%; text-align: center; }
 
   .heat { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; max-width: 300px; }
   .heat .hc { aspect-ratio: 3/2; border-radius: 7px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-family: var(--mono); font-size: 13px; border: 1px solid var(--line); }
@@ -440,13 +448,24 @@
   const DRIVE_FOLDER_MIME = "application/vnd.google-apps.folder";
   const DRIVE_FOLDER_CACHE = "ttm-drive-folder-id";
 
-  const SERVE_SPIN = ["Backspin", "Lateral", "Sem efeito", "Topspin"];
+  const SERVE_SPIN = ["Backspin", "Lateral esq.", "Lateral dir.", "Sem efeito", "Topspin"];
   const SERVE_SPIN_MAX = 2;
   const SERVE_LEN = ["Curto", "Meio", "Longo"];
   const SIDE3 = ["FH", "Meio", "BH"];
-  const STROKES = ["Topspin", "Contra-ataque", "Bloqueio", "Push/Corte", "Flick", "Smash", "Drive", "Saque (ace)", "Deixada", "Outro"];
+  const STROKES = ["Topspin", "Contra-ataque", "Bloqueio", "Push", "Flick", "Smash", "Drive", "Saque (ace)", "Deixada", "Outro"];
   const SIDE2 = ["FH", "BH"];
-  const END_TYPES = ["Winner", "Erro forçado", "Erro não forçado"];
+  // Desfecho do ponto (substitui "quem ganhou" + "como terminou"). "meu golpe" é sempre o SEU último golpe.
+  // Ordem intercalada win/loss: o grid de 2 colunas (data-field="outcome") preenche por linha,
+  // então esta sequência é o que mantém a coluna 1 = "Ganhei" e a coluna 2 = "Perdi".
+  const OUTCOMES = [
+    { id: "my_winner", label: "Meu winner", win: true },
+    { id: "my_error", label: "Meu erro", win: false },
+    { id: "opp_error", label: "Erro do adversário", win: true },
+    { id: "opp_winner", label: "Winner do adversário", win: false }
+  ];
+  const OUTCOME_LABEL = { my_winner: "Meu winner", opp_error: "Erro do adv.", my_error: "Meu erro", opp_winner: "Winner do adv." };
+  const RECV_NEUTRAL = ["Push", "Bloqueio"];
+  const RECV_AGGRO = ["Flick", "Drive"];
   const ZONE_ROWS = ["Longa", "Curta"]; // topo = fundo da mesa, base = rede
 
   const PHASES = {
@@ -471,7 +490,7 @@
   function freshDraft() {
     return {
       server: "me", serveSpin: [], serveLen: null, serveSide: null,
-      rallyLen: 3, winner: null, endType: null, endStroke: null, endSide: null,
+      rallyLen: 3, outcome: null, myStroke: null, myStrokeSide: null, recvStroke: null,
       zoneX: null, zoneY: null, videoTime: null, note: ""
     };
   }
@@ -482,7 +501,16 @@
     (d.points || []).forEach(p => {
       if (typeof p.serveSpin === "string") p.serveSpin = (p.serveSpin && p.serveSpin !== "Misto") ? [p.serveSpin] : [];
       if (!Array.isArray(p.serveSpin)) p.serveSpin = [];
-      if (p.endStroke === "Ataque (topspin)") p.endStroke = "Topspin";
+      // v1 -> v2: winner + endType -> outcome; endStroke/endSide -> myStroke/myStrokeSide
+      if (!p.outcome && p.endType) {
+        if (p.endType === "Winner") p.outcome = p.winner === "me" ? "my_winner" : "opp_winner";
+        else p.outcome = p.winner === "me" ? "opp_error" : "my_error";
+      }
+      if (p.myStroke === undefined) {
+        p.myStroke = p.endStroke === "Ataque (topspin)" ? "Topspin" : (p.endStroke === "Push/Corte" ? "Push" : (p.endStroke || null));
+      }
+      if (p.myStrokeSide === undefined) p.myStrokeSide = p.endSide || null;
+      if (p.recvStroke === undefined) p.recvStroke = null;
     });
     return d;
   }
@@ -508,12 +536,14 @@
   }
 
   // ---------------- Derived helpers ----------------
+  const OUTCOME_WIN = { my_winner: true, opp_error: true, my_error: false, opp_winner: false };
   function phaseOf(p) { return p.rallyLen >= 5 ? "rally" : (p.server === "me" ? "serve" : "receive"); }
-  function isWin(p) { return p.winner === "me"; }
-  // Author of the deciding stroke: winner if Winner, loser if error
-  function deciderIsMe(p) {
-    if (p.endType === "Winner") return p.winner === "me";
-    return p.winner === "opp"; // an error by the point-loser; loser is me when opp won
+  function isWin(p) { return !!OUTCOME_WIN[p.outcome]; }
+  // Reception outcome: I always touch the ball unless the opponent's serve is an outright ace (rallyLen 1).
+  function recvOutcome(p) {
+    if (p.rallyLen === 1) return "ace_contra";
+    if (p.rallyLen === 2) return p.outcome === "my_winner" ? "winner" : "erro";
+    return "em_jogo";
   }
   function matchPoints(mid) { return DB.points.filter(p => p.matchId === mid).sort((a, b) => a.pointNo - b.pointNo); }
   function currentMatch() { return DB.matches.find(m => m.id === ui.matchId) || null; }
@@ -613,10 +643,17 @@
             </div>
 
             <div class="field">
-              <label>Quem ganhou o ponto</label>
-              <div class="chips seg" data-field="winner">
-                <button class="chip win seg-btn" data-val="me" aria-pressed="${d.winner === "me" ? "true" : "false"}">✓ Meu</button>
-                <button class="chip loss seg-btn" data-val="opp" aria-pressed="${d.winner === "opp" ? "true" : "false"}">✕ Adversário</button>
+              <label>Rally (nº de golpes)</label>
+              <div class="rally-line">
+                <div class="stepper">
+                  <button id="rl-minus" aria-label="Menos um golpe">−</button>
+                  <span class="val tnum" id="rl-val">${d.rallyLen}</span>
+                  <button id="rl-plus" aria-label="Mais um golpe">+</button>
+                </div>
+                <div class="rally-quick" data-field="rallyLenQuick">
+                  ${[1, 2, 3, 4, 5].map(n => `<button class="chip" data-val="${n}" aria-pressed="${d.rallyLen === n ? "true" : "false"}">${n}</button>`).join("")}
+                  <button class="chip" data-val="7" aria-pressed="${d.rallyLen >= 7 ? "true" : "false"}">7+</button>
+                </div>
               </div>
             </div>
 
@@ -636,41 +673,41 @@
               </div>
             </div>
 
-            <div class="field">
-              <label>Rally (nº de golpes)</label>
-              <div class="rally-line">
-                <div class="stepper">
-                  <button id="rl-minus" aria-label="Menos um golpe">−</button>
-                  <span class="val tnum" id="rl-val">${d.rallyLen}</span>
-                  <button id="rl-plus" aria-label="Mais um golpe">+</button>
-                </div>
-                <div class="rally-quick" data-field="rallyLenQuick">
-                  ${[1, 2, 3, 4, 5].map(n => `<button class="chip" data-val="${n}" aria-pressed="${d.rallyLen === n ? "true" : "false"}">${n}</button>`).join("")}
-                  <button class="chip" data-val="7" aria-pressed="${d.rallyLen >= 7 ? "true" : "false"}">7+</button>
-                </div>
+            <div class="field span2">
+              <label>Desfecho do ponto</label>
+              <div class="outcome-grid" data-field="outcome">
+                <span class="dgh w">Ganhei</span><span class="dgh l">Perdi</span>
+                ${OUTCOMES.map(o => `<button class="chip ${o.win ? "win" : "loss"}" data-val="${o.id}" aria-pressed="${d.outcome === o.id ? "true" : "false"}">${o.win ? "✓" : "✕"} ${esc(o.label)}</button>`).join("")}
               </div>
             </div>
 
-            <div class="field">
-              <label>Como terminou</label>
-              ${chipGroup("endType", END_TYPES, d.endType)}
-            </div>
-
             <div class="field span2">
-              <label>Golpe que fechou o ponto <span class="decider-pill neutral" id="dec-who">defina resultado + finalização</span></label>
-              <div class="rule-hint"><b>Winner</b> → golpe de quem <b>ganhou</b> · <b>Erro</b> → golpe de quem <b>errou</b></div>
+              <label>Meu golpe <span class="decider-pill neutral" id="dec-who">defina o desfecho</span></label>
               <div class="subrow">
                 <span class="sublabel">Golpe</span>
-                ${chipGroup("endStroke", STROKES, d.endStroke)}
+                ${chipGroup("myStroke", STROKES, d.myStroke)}
               </div>
               <div class="subrow">
                 <span class="sublabel">Lado</span>
-                ${chipGroup("endSide", SIDE2, d.endSide)}
+                ${chipGroup("myStrokeSide", SIDE2, d.myStrokeSide)}
               </div>
             </div>
 
+            ${d.server === "opp" && d.rallyLen >= 2 ? `
             <div class="field span2">
-              <label>Zona onde a bola decisiva quicou</label>
+              <label>Golpe de recepção <span class="muted-note">(sua devolução ao saque)</span></label>
+              <div class="subrow">
+                <span class="sublabel">Neutra</span>
+                ${chipGroup("recvStroke", RECV_NEUTRAL, d.recvStroke)}
+              </div>
+              <div class="subrow">
+                <span class="sublabel">Agressiva</span>
+                ${chipGroup("recvStroke", RECV_AGGRO, d.recvStroke)}
+              </div>
+            </div>` : ``}
+
+            <div class="field span2">
+              <label>Zona onde meu golpe quicou <span class="muted-note">(mesa do adversário)</span></label>
               <div class="zone-flex">
                 <div class="zone-block">
                   <div class="zone-net">fundo ↑</div>
@@ -701,9 +738,9 @@
     if (!pts.length) return `<p class="muted-note" style="padding:4px 2px">Nenhum ponto ainda. Assista à gravação e registre ponto a ponto ao lado. →</p>`;
     return pts.slice().reverse().map(p => {
       const win = isWin(p);
-      const strokeTxt = p.endStroke ? `${p.endStroke}${p.endSide ? " " + p.endSide : ""}` : "—";
+      const strokeTxt = p.myStroke ? `${p.myStroke}${p.myStrokeSide ? " " + p.myStrokeSide : ""}` : "—";
       const serveTxt = p.server === "me" ? "seu saque" : "saque adv.";
-      const cause = p.endType || "";
+      const cause = OUTCOME_LABEL[p.outcome] || "";
       return `<div class="pt" data-pid="${p.id}">
         <span class="n tnum">#${p.pointNo}</span>
         <span class="desc"><b>${win ? "Ganhou" : "Perdeu"}</b> · ${esc(serveTxt)} · rally ${p.rallyLen} · ${esc(cause)} <span class="tag">${esc(strokeTxt)}</span>${p.videoTime != null ? `<span class="tag mono">${fmtTime(p.videoTime)}</span>` : ""}</span>
@@ -715,15 +752,22 @@
     }).join("");
   }
 
+  const STROKE_ROLE_HINT = {
+    my_winner: "sua finalização",
+    opp_error: "seu golpe de pressão",
+    my_error: "o golpe que você errou",
+    opp_winner: "o golpe que ele puniu"
+  };
   function updateDeciderHint() {
     const el = document.getElementById("dec-who");
     if (!el) return;
     const d = ui.draft;
-    if (d.winner && d.endType) {
-      const me = d.endType === "Winner" ? d.winner === "me" : d.winner === "opp";
-      el.textContent = me ? "registre o SEU golpe" : "registre o golpe do ADVERSÁRIO";
-      el.className = "decider-pill " + (me ? "me" : "opp");
-    } else { el.textContent = "defina resultado + finalização"; el.className = "decider-pill neutral"; }
+    const aceContra = d.server === "opp" && d.rallyLen === 1;
+    if (aceContra) { el.textContent = "ace do adversário — sem golpe seu"; el.className = "decider-pill opp"; return; }
+    if (d.outcome) {
+      el.textContent = STROKE_ROLE_HINT[d.outcome];
+      el.className = "decider-pill " + (OUTCOME_WIN[d.outcome] ? "me" : "opp");
+    } else { el.textContent = "defina o desfecho"; el.className = "decider-pill neutral"; }
   }
 
   function wireRegistrar() {
@@ -798,28 +842,24 @@
       const idx = arr.indexOf(val);
       if (idx >= 0) arr.splice(idx, 1);
       else { if (arr.length >= SERVE_SPIN_MAX) { toast("Máximo de " + SERVE_SPIN_MAX + " efeitos por saque.", true); return; } arr.push(val); }
-      elm.parentElement.querySelectorAll(".chip").forEach(c => c.setAttribute("aria-pressed", d.serveSpin.includes(c.dataset.val) ? "true" : "false"));
+      document.querySelectorAll('[data-field="serveSpin"] .chip').forEach(c => c.setAttribute("aria-pressed", d.serveSpin.includes(c.dataset.val) ? "true" : "false"));
       return;
     }
-    // toggle-off if same (except server & winner which are exclusive selects that stay)
-    const single = ["serveLen", "serveSide", "endType", "endStroke", "endSide"];
+    // server changes which fields apply (recepção) — full re-render keeps everything in sync
+    if (field === "server") { d.server = val; renderRegistrar(); return; }
+    // "outcome" is a required exclusive pick that stays selected; everything else toggles off on repeat click
     let newVal = val;
-    if (single.includes(field) && d[field] === val) newVal = null;
-    if (field === "server") newVal = val;
-    if (field === "winner") newVal = val;
+    if (field !== "outcome" && d[field] === val) newVal = null;
     d[field] = newVal;
-    // reflect pressed state within group
-    elm.parentElement.querySelectorAll(".chip").forEach(c => c.setAttribute("aria-pressed", c.dataset.val === (d[field] == null ? "__none__" : String(d[field])) ? "true" : "false"));
-    if (field === "winner" || field === "endType") updateDeciderHint();
+    // reflect pressed state across the whole field (may span multiple containers, e.g. recvStroke)
+    document.querySelectorAll('[data-field="' + field + '"] .chip').forEach(c => c.setAttribute("aria-pressed", c.dataset.val === (d[field] == null ? "__none__" : String(d[field])) ? "true" : "false"));
+    if (field === "outcome") updateDeciderHint();
   }
 
   function setRally(n) {
+    // rallyLen crosses thresholds that affect the recepção field and the ace hint — full re-render keeps it correct
     ui.draft.rallyLen = n;
-    const v = document.getElementById("rl-val"); if (v) v.textContent = n;
-    document.querySelectorAll('[data-field="rallyLenQuick"] .chip').forEach(c => {
-      const cv = parseInt(c.dataset.val, 10);
-      c.setAttribute("aria-pressed", (cv === 7 ? n >= 7 : cv === n) ? "true" : "false");
-    });
+    renderRegistrar();
   }
 
   function startEditPoint(pid) {
@@ -827,7 +867,7 @@
     ui.editPointId = pid;
     ui.draft = {
       server: p.server, serveSpin: (Array.isArray(p.serveSpin) ? p.serveSpin.slice() : []), serveLen: p.serveLen, serveSide: p.serveSide,
-      rallyLen: p.rallyLen, winner: p.winner, endType: p.endType, endStroke: p.endStroke, endSide: p.endSide,
+      rallyLen: p.rallyLen, outcome: p.outcome || null, myStroke: p.myStroke || null, myStrokeSide: p.myStrokeSide || null, recvStroke: p.recvStroke || null,
       zoneX: p.zoneX, zoneY: p.zoneY, videoTime: p.videoTime, note: p.note || ""
     };
     ui.videoTime = p.videoTime;
@@ -837,14 +877,14 @@
 
   function savePoint() {
     const d = ui.draft;
-    if (!d.winner) { toast("Marque quem ganhou o ponto.", true); return; }
+    if (!d.outcome) { toast("Marque o desfecho do ponto.", true); return; }
     const m = currentMatch(); if (!m) return;
 
     if (ui.editPointId) {
       const p = DB.points.find(x => x.id === ui.editPointId);
       if (p) Object.assign(p, {
         server: d.server, serveSpin: d.serveSpin.slice(), serveLen: d.serveLen, serveSide: d.serveSide,
-        rallyLen: d.rallyLen, winner: d.winner, endType: d.endType, endStroke: d.endStroke, endSide: d.endSide,
+        rallyLen: d.rallyLen, outcome: d.outcome, myStroke: d.myStroke, myStrokeSide: d.myStrokeSide, recvStroke: d.recvStroke,
         zoneX: d.zoneX, zoneY: d.zoneY, videoTime: d.videoTime, note: d.note
       });
       ui.editPointId = null;
@@ -857,10 +897,10 @@
       DB.points.push({
         id: uid(), matchId: m.id, setNo, pointNo: nextNo,
         server: d.server, serveSpin: d.serveSpin.slice(), serveLen: d.serveLen, serveSide: d.serveSide,
-        rallyLen: d.rallyLen, winner: d.winner, endType: d.endType, endStroke: d.endStroke, endSide: d.endSide,
+        rallyLen: d.rallyLen, outcome: d.outcome, myStroke: d.myStroke, myStrokeSide: d.myStrokeSide, recvStroke: d.recvStroke,
         zoneX: d.zoneX, zoneY: d.zoneY, videoTime: d.videoTime, note: d.note, createdAt: new Date().toISOString()
       });
-      toast(isWin({ winner: d.winner }) ? "Ponto ganho registrado ✓" : "Ponto registrado.");
+      toast(OUTCOME_WIN[d.outcome] ? "Ponto ganho registrado ✓" : "Ponto registrado.");
     }
     persist();
     // keep server + serve context for speed, reset outcome fields
@@ -962,19 +1002,20 @@
       return { key, label: PHASES[key].label, color: PHASES[key].color, n: ph.length, won: w, use: pct(ph.length, total), sr: pct(w, ph.length) };
     });
 
-    // winners / errors (mine)
-    const myWinners = P.filter(p => p.endType === "Winner" && p.winner === "me").length;
-    const myForced = P.filter(p => p.endType === "Erro forçado" && p.winner === "opp").length;
-    const myUnforced = P.filter(p => p.endType === "Erro não forçado" && p.winner === "opp").length;
-    const oppErrGifts = P.filter(p => p.endType !== "Winner" && p.winner === "me").length;
+    // desfecho (mine) — how I win / how I lose
+    const myWinners = P.filter(p => p.outcome === "my_winner").length;
+    const oppErrors = P.filter(p => p.outcome === "opp_error").length; // I won, opponent erred
+    const myErrors = P.filter(p => p.outcome === "my_error").length;
+    const oppWinners = P.filter(p => p.outcome === "opp_winner").length; // opponent beat me clean
+    const wonCount = myWinners + oppErrors, lostCount = myErrors + oppWinners;
 
-    // stroke effectiveness (my deciding strokes)
-    const myDeciders = P.filter(deciderIsMe).filter(p => p.endStroke);
+    // stroke effectiveness — only my_winner / my_error (Option A: winners vs. seus erros)
     const strokeMap = {};
-    myDeciders.forEach(p => {
-      const key = p.endStroke + (p.endSide ? " " + p.endSide : "");
+    P.forEach(p => {
+      if (!p.myStroke || (p.outcome !== "my_winner" && p.outcome !== "my_error")) return;
+      const key = p.myStroke + (p.myStrokeSide ? " " + p.myStrokeSide : "");
       strokeMap[key] = strokeMap[key] || { key, win: 0, err: 0 };
-      if (p.endType === "Winner") strokeMap[key].win++; else strokeMap[key].err++;
+      if (p.outcome === "my_winner") strokeMap[key].win++; else strokeMap[key].err++;
     });
     const strokes = Object.values(strokeMap).sort((a, b) => (b.win + b.err) - (a.win + a.err));
 
@@ -1005,18 +1046,29 @@
       return { k: b.k, n: arr.length, w: arr.filter(isWin).length };
     });
 
-    // zones (my deciding shots)
+    // zones — where my winners land vs. where my errors land
     const zoneWin = {}, zoneErr = {};
-    myDeciders.forEach(p => {
+    P.forEach(p => {
       if (!p.zoneX || !p.zoneY) return;
       const key = p.zoneX + "|" + p.zoneY;
-      if (p.endType === "Winner") zoneWin[key] = (zoneWin[key] || 0) + 1;
-      else zoneErr[key] = (zoneErr[key] || 0) + 1;
+      if (p.outcome === "my_winner") zoneWin[key] = (zoneWin[key] || 0) + 1;
+      else if (p.outcome === "my_error") zoneErr[key] = (zoneErr[key] || 0) + 1;
     });
 
     // third ball
     const thirdBall = serving.filter(p => p.rallyLen === 3);
     const thirdWon = thirdBall.filter(isWin).length;
+
+    // recepção — distribution + neutra × agressiva
+    const recvDist = { ace_contra: 0, erro: 0, em_jogo: 0, winner: 0 };
+    receiving.forEach(p => recvDist[recvOutcome(p)]++);
+    const recvTouched = receiving.length - recvDist.ace_contra;
+    const recvStyleMap = { neutra: { n: 0, w: 0 }, agressiva: { n: 0, w: 0 } };
+    receiving.forEach(p => {
+      if (!p.recvStroke) return;
+      const style = RECV_AGGRO.includes(p.recvStroke) ? "agressiva" : "neutra";
+      recvStyleMap[style].n++; if (isWin(p)) recvStyleMap[style].w++;
+    });
 
     body.innerHTML = `
       <div class="filters"><label>Partida</label><select id="f-match">${opts}</select>
@@ -1027,7 +1079,30 @@
         <div class="tile"><div class="lab">Sacando</div><div class="big tnum">${pct(serving.filter(isWin).length, serving.length)}%</div><div class="sub">${serving.length} pontos no seu saque</div></div>
         <div class="tile"><div class="lab">Recebendo</div><div class="big tnum">${pct(receiving.filter(isWin).length, receiving.length)}%</div><div class="sub">${receiving.length} pontos recebendo</div></div>
         <div class="tile"><div class="lab">3ª bola (ataque após saque)</div><div class="big tnum">${pct(thirdWon, thirdBall.length)}%</div><div class="sub">${thirdBall.length} rallies de 3 golpes</div></div>
-        <div class="tile"><div class="lab">Winners × Erros seus</div><div class="big tnum">${myWinners}<span style="color:var(--muted);font-size:20px"> / </span>${myForced + myUnforced}</div><div class="sub">${myUnforced} não forçados · ${myForced} forçados</div></div>
+        <div class="tile"><div class="lab">Meu winner × meu erro</div><div class="big tnum">${myWinners}<span style="color:var(--muted);font-size:20px"> / </span>${myErrors}</div><div class="sub">${oppErrors} por erro do adv. · ${oppWinners} por winner dele</div></div>
+      </div>
+
+      <div class="grid2 mb16">
+        <div class="card">
+          <h3 style="margin:0 0 3px;font-size:13.5px">Como eu <span style="color:var(--win)">ganho</span> meus pontos</h3>
+          <p class="muted-note" style="margin:0 0 12px">${wonCount} pontos ganhos</p>
+          ${wonCount ? `<div class="splitbar">
+              <span style="width:${pct(myWinners, wonCount)}%;background:var(--win)">${myWinners ? pct(myWinners, wonCount) + "%" : ""}</span>
+              <span style="width:${pct(oppErrors, wonCount)}%;background:var(--s-blue)">${oppErrors ? pct(oppErrors, wonCount) + "%" : ""}</span>
+            </div>
+            <div class="legend"><span><i style="background:var(--win)"></i>Meu winner · ${myWinners}</span><span><i style="background:var(--s-blue)"></i>Erro do adv. · ${oppErrors}</span></div>` :
+            `<p class="muted-note">Sem pontos ganhos registrados ainda.</p>`}
+        </div>
+        <div class="card">
+          <h3 style="margin:0 0 3px;font-size:13.5px">Como eu <span style="color:var(--loss)">perco</span> meus pontos</h3>
+          <p class="muted-note" style="margin:0 0 12px">${lostCount} pontos perdidos</p>
+          ${lostCount ? `<div class="splitbar">
+              <span style="width:${pct(myErrors, lostCount)}%;background:var(--loss)">${myErrors ? pct(myErrors, lostCount) + "%" : ""}</span>
+              <span style="width:${pct(oppWinners, lostCount)}%;background:var(--warn)">${oppWinners ? pct(oppWinners, lostCount) + "%" : ""}</span>
+            </div>
+            <div class="legend"><span><i style="background:var(--loss)"></i>Meu erro · ${myErrors}</span><span><i style="background:var(--warn)"></i>Winner do adv. · ${oppWinners}</span></div>` :
+            `<p class="muted-note">Sem pontos perdidos registrados ainda.</p>`}
+        </div>
       </div>
 
       <div class="card mb16">
@@ -1087,6 +1162,36 @@
 
       <div class="grid2 mb16">
         <div class="card">
+          <h2>Recepção — o que acontece</h2>
+          <p class="muted-note" style="margin:-4px 0 12px">${receiving.length} pontos recebendo${recvDist.ace_contra ? ` · ${recvDist.ace_contra} ace do adversário (sem toque seu)` : ""}</p>
+          ${recvTouched ? `<div class="splitbar">
+              <span style="width:${pct(recvDist.erro, recvTouched)}%;background:var(--loss)">${recvDist.erro ? pct(recvDist.erro, recvTouched) + "%" : ""}</span>
+              <span style="width:${pct(recvDist.em_jogo, recvTouched)}%;background:var(--s-blue)">${recvDist.em_jogo ? pct(recvDist.em_jogo, recvTouched) + "%" : ""}</span>
+              <span style="width:${pct(recvDist.winner, recvTouched)}%;background:var(--win)">${recvDist.winner ? pct(recvDist.winner, recvTouched) + "%" : ""}</span>
+            </div>
+            <div class="legend"><span><i style="background:var(--loss)"></i>Errei a recepção · ${recvDist.erro}</span><span><i style="background:var(--s-blue)"></i>Coloquei em jogo · ${recvDist.em_jogo}</span><span><i style="background:var(--win)"></i>Winner de recepção · ${recvDist.winner}</span></div>` :
+            `<p class="muted-note">Registre pontos recebendo para ver esta distribuição.</p>`}
+        </div>
+        <div class="card">
+          <h2>Recepção — neutra × agressiva</h2>
+          ${(recvStyleMap.neutra.n + recvStyleMap.agressiva.n) ? `<div class="hbars">
+              <div class="hbar"><span class="lbl">Neutra <span style="color:var(--muted)">(push/bloq.)</span></span>
+                <div class="track"><span style="width:${pct(recvStyleMap.neutra.w, recvStyleMap.neutra.n)}%;background:var(--warn)"></span></div>
+                <span class="val">${recvStyleMap.neutra.n ? pct(recvStyleMap.neutra.w, recvStyleMap.neutra.n) + "%" : "—"} <span style="color:var(--muted)">(${recvStyleMap.neutra.n})</span></span></div>
+              <div class="hbar"><span class="lbl">Agressiva <span style="color:var(--muted)">(flick/drive)</span></span>
+                <div class="track"><span style="width:${pct(recvStyleMap.agressiva.w, recvStyleMap.agressiva.n)}%;background:var(--win)"></span></div>
+                <span class="val">${recvStyleMap.agressiva.n ? pct(recvStyleMap.agressiva.w, recvStyleMap.agressiva.n) + "%" : "—"} <span style="color:var(--muted)">(${recvStyleMap.agressiva.n})</span></span></div>
+            </div>
+            ${recvStyleMap.neutra.n >= 4 && recvStyleMap.agressiva.n >= 4 ? (() => {
+              const diff = pct(recvStyleMap.agressiva.w, recvStyleMap.agressiva.n) - pct(recvStyleMap.neutra.w, recvStyleMap.neutra.n);
+              return diff !== 0 ? `<div class="rec ${diff < 0 ? "warn" : ""}">${diff > 0 ? "↗" : "↘"} Você aproveita mais quando ${diff > 0 ? "ataca" : "segura"} a recepção (${diff > 0 ? "+" : ""}${diff} pts)</div>` : "";
+            })() : ""}` :
+            `<p class="muted-note">Registre o golpe de recepção (push/bloqueio/flick/drive) para comparar.</p>`}
+        </div>
+      </div>
+
+      <div class="grid2 mb16">
+        <div class="card">
           <h2>Onde caem suas bolas decisivas</h2>
           <div style="display:flex;gap:22px;flex-wrap:wrap">
             ${zoneGrid("Winners", zoneWin, "var(--win)")}
@@ -1095,7 +1200,7 @@
         </div>
         <div class="card">
           <h2>Táticas e oportunidades</h2>
-          <div id="insights">${renderInsights({ phaseData, serves, recvs, strokes, serving, receiving, thirdBall, thirdWon, myUnforced, total, won, rallyData })}</div>
+          <div id="insights">${renderInsights({ phaseData, serves, recvs, strokes, serving, receiving, thirdBall, thirdWon, myErrors, recvStyleMap, total, won, rallyData })}</div>
         </div>
       </div>`;
 
@@ -1148,9 +1253,15 @@
     // Worst phase
     const worstPhase = x.phaseData.filter(p => p.n >= MIN).sort((a, b) => a.sr - b.sr)[0];
     if (worstPhase && worstPhase.sr < 50) warn.push({ t: `Fase a melhorar: <b>${worstPhase.label}</b>`, s: `só ${worstPhase.sr}% de aproveitamento (${worstPhase.n} pontos). É onde você mais perde pontos.` });
-    // Unforced errors
-    if (x.myUnforced >= 4 && x.myUnforced / x.total >= 0.18)
-      warn.push({ t: `Muitos erros não forçados`, s: `${x.myUnforced} pontos perdidos por erro não forçado (${pct(x.myUnforced, x.total)}% do total) — foco em consistência.` });
+    // My errors
+    if (x.myErrors >= 4 && x.myErrors / x.total >= 0.18)
+      warn.push({ t: `Muitos erros seus`, s: `${x.myErrors} pontos perdidos por erro seu (${pct(x.myErrors, x.total)}% do total) — foco em consistência.` });
+    // Reception style gap
+    if (x.recvStyleMap && x.recvStyleMap.neutra.n >= 4 && x.recvStyleMap.agressiva.n >= 4) {
+      const nPct = pct(x.recvStyleMap.neutra.w, x.recvStyleMap.neutra.n), aPct = pct(x.recvStyleMap.agressiva.w, x.recvStyleMap.agressiva.n);
+      if (aPct - nPct >= 15) good.push({ t: `Recepção agressiva funciona`, s: `${aPct}% de aproveitamento com flick/drive na recepção contra ${nPct}% com push/bloqueio — vale arriscar mais.` });
+      else if (nPct - aPct >= 15) warn.push({ t: `Recepção agressiva arriscada`, s: `só ${aPct}% de aproveitamento com flick/drive contra ${nPct}% com push/bloqueio — segure mais a recepção.` });
+    }
     // Worst receive
     const badRecv = x.recvs.filter(s => s.n >= MIN).sort((a, b) => (a.w / a.n) - (b.w / b.n))[0];
     if (badRecv && (badRecv.w / badRecv.n) < 0.45)
@@ -1271,14 +1382,14 @@
 
   // ---------------- Export / import ----------------
   function buildCSV() {
-    const head = ["partida", "adversario", "data", "set", "ponto", "sacador", "saque_efeito", "saque_comprimento", "saque_direcao", "rally", "fase", "resultado", "finalizacao", "golpe", "lado", "zona_x", "zona_y", "tempo_video_s", "nota"];
+    const head = ["partida", "adversario", "data", "set", "ponto", "sacador", "saque_efeito", "saque_comprimento", "saque_direcao", "rally", "fase", "resultado", "desfecho", "meu_golpe", "meu_lado", "recepcao", "zona_x", "zona_y", "tempo_video_s", "nota"];
     const rows = [head.join(",")];
     DB.points.slice().sort((a, b) => a.matchId < b.matchId ? -1 : a.pointNo - b.pointNo).forEach(p => {
       const m = DB.matches.find(x => x.id === p.matchId) || {};
       const r = [
         m.id || "", m.opponent || "", m.date || "", p.setNo, p.pointNo, p.server === "me" ? "Eu" : "Adversario",
         spinsOf(p).join("+"), p.serveLen || "", p.serveSide || "", p.rallyLen, PHASES[phaseOf(p)].label,
-        isWin(p) ? "Ganho" : "Perda", p.endType || "", p.endStroke || "", p.endSide || "",
+        isWin(p) ? "Ganho" : "Perda", OUTCOME_LABEL[p.outcome] || "", p.myStroke || "", p.myStrokeSide || "", p.recvStroke || "",
         p.zoneX || "", p.zoneY || "", p.videoTime == null ? "" : p.videoTime, p.note || ""
       ].map(csvCell);
       rows.push(r.join(","));
