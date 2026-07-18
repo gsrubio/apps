@@ -172,13 +172,13 @@
   .scorebug .mid { opacity: .5; font-size: 20px; }
   .scorebug .setn { margin-left: auto; font-size: 12px; background: rgba(255,255,255,.16); padding: 4px 9px; border-radius: 7px; }
 
-  .field { margin-bottom: 13px; }
-  .field > label { display: block; font-size: 11.5px; font-weight: 650; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin-bottom: 6px; }
+  .field { margin-bottom: 11px; }
+  .field > label { display: block; font-size: 11.5px; font-weight: 650; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin-bottom: 5px; }
   .chips { display: flex; flex-wrap: wrap; gap: 6px; }
   .chip {
-    font-family: inherit; font-size: 13px; font-weight: 500;
+    font-family: inherit; font-size: 12.5px; font-weight: 500;
     border: 1px solid var(--line-2); background: var(--surface); color: var(--ink-2);
-    padding: 7px 12px; border-radius: 9px; cursor: pointer; transition: .1s; user-select: none;
+    padding: 6px 10px; border-radius: 8px; cursor: pointer; transition: .1s; user-select: none;
   }
   .chip:hover { border-color: var(--brand); color: var(--ink); }
   .chip[aria-pressed="true"] { background: var(--brand); border-color: var(--brand); color: #fff; }
@@ -209,8 +209,32 @@
   .row { display: flex; gap: 10px; flex-wrap: wrap; }
   .row > * { flex: 1; min-width: 0; }
 
-  .save-row { display: flex; gap: 10px; margin-top: 16px; }
-  .save-row .btn.primary { flex: 1; justify-content: center; padding: 13px; font-size: 15px; border-radius: 11px; }
+  .save-row { display: flex; gap: 10px; margin-top: 14px; }
+  .save-row .btn.primary { flex: 1; justify-content: center; padding: 12px; font-size: 15px; border-radius: 11px; }
+
+  /* compact registrar form */
+  .card.compact { padding: 15px 16px; }
+  .fgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 16px; }
+  .fgrid .field { margin-bottom: 0; }
+  .span2 { grid-column: 1 / -1; }
+  @media (max-width: 560px) { .fgrid { grid-template-columns: 1fr; } }
+  .seg { gap: 6px; }
+  .seg-btn { flex: 1; text-align: center; padding: 9px 6px; font-weight: 600; font-size: 13px; }
+  .subrow { display: grid; grid-template-columns: 72px 1fr; align-items: start; gap: 8px; margin-bottom: 6px; }
+  .subrow:last-child { margin-bottom: 0; }
+  .sublabel { font-size: 11px; color: var(--muted); font-weight: 600; text-align: right; padding-top: 7px; line-height: 1.15; }
+  .sublabel small { display: block; font-weight: 400; font-size: 9.5px; opacity: .85; }
+  .rally-line { display: flex; align-items: center; flex-wrap: wrap; gap: 5px; }
+  .zone-flex { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+  .zone-block { flex: 0 0 auto; }
+  .zone-flex .zone-grid { max-width: 216px; }
+  .note-inline { flex: 1; min-width: 150px; align-self: center; }
+  .decider-pill { font-size: 10.5px; font-weight: 700; text-transform: none; letter-spacing: 0; padding: 2px 8px; border-radius: 20px; vertical-align: middle; }
+  .decider-pill.me { background: var(--win-soft); color: var(--win); }
+  .decider-pill.opp { background: var(--accent-soft); color: var(--accent); }
+  .decider-pill.neutral { background: var(--surface-3); color: var(--muted); }
+  .rule-hint { font-size: 11px; color: var(--muted); margin-bottom: 8px; }
+  .rule-hint b { color: var(--ink-2); font-weight: 650; }
 
   /* ---------- Point list ---------- */
   .plist { margin-top: 18px; }
@@ -411,14 +435,19 @@
   const LS_KEY = "ttm-analyzer-v1";
   const DRIVE_FILE = "ttm-analyzer-data.json";
   const DRIVE_SERVER = "Google Drive";
+  const DRIVE_FOLDER_ROOT = "Tênis de Mesa";
+  const DRIVE_FOLDER_SUB = "App Análise Jogos";
+  const DRIVE_FOLDER_MIME = "application/vnd.google-apps.folder";
+  const DRIVE_FOLDER_CACHE = "ttm-drive-folder-id";
 
-  const SERVE_SPIN = ["Backspin", "Lateral", "Sem efeito", "Topspin", "Misto"];
+  const SERVE_SPIN = ["Backspin", "Lateral", "Sem efeito", "Topspin"];
+  const SERVE_SPIN_MAX = 2;
   const SERVE_LEN = ["Curto", "Meio", "Longo"];
   const SIDE3 = ["FH", "Meio", "BH"];
-  const STROKES = ["Ataque (topspin)", "Contra-ataque", "Bloqueio", "Push/Corte", "Flick", "Smash", "Drive", "Saque (ace)", "Deixada", "Recepção", "Outro"];
+  const STROKES = ["Topspin", "Contra-ataque", "Bloqueio", "Push/Corte", "Flick", "Smash", "Drive", "Saque (ace)", "Deixada", "Outro"];
   const SIDE2 = ["FH", "BH"];
   const END_TYPES = ["Winner", "Erro forçado", "Erro não forçado"];
-  const ZONE_ROWS = ["Curta", "Longa"];
+  const ZONE_ROWS = ["Longa", "Curta"]; // topo = fundo da mesa, base = rede
 
   const PHASES = {
     serve: { label: "Saque e Ataque", color: "var(--s-blue)" },
@@ -441,7 +470,7 @@
 
   function freshDraft() {
     return {
-      server: "me", serveSpin: null, serveLen: null, serveSide: null,
+      server: "me", serveSpin: [], serveLen: null, serveSide: null,
       rallyLen: 3, winner: null, endType: null, endStroke: null, endSide: null,
       zoneX: null, zoneY: null, videoTime: null, note: ""
     };
@@ -449,13 +478,22 @@
 
   function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
 
+  function migrate(d) {
+    (d.points || []).forEach(p => {
+      if (typeof p.serveSpin === "string") p.serveSpin = (p.serveSpin && p.serveSpin !== "Misto") ? [p.serveSpin] : [];
+      if (!Array.isArray(p.serveSpin)) p.serveSpin = [];
+      if (p.endStroke === "Ataque (topspin)") p.endStroke = "Topspin";
+    });
+    return d;
+  }
   function load() {
     try {
       const raw = localStorage.getItem(LS_KEY);
-      if (raw) { const d = JSON.parse(raw); if (d && d.matches && d.points) return d; }
+      if (raw) { const d = JSON.parse(raw); if (d && d.matches && d.points) return migrate(d); }
     } catch (e) {}
     return { schema: "ttm-analyzer", version: 1, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), matches: [], points: [] };
   }
+  function spinsOf(p) { return Array.isArray(p.serveSpin) ? p.serveSpin : (p.serveSpin ? [p.serveSpin] : []); }
   function persist() {
     DB.updatedAt = new Date().toISOString();
     try { localStorage.setItem(LS_KEY, JSON.stringify(DB)); } catch (e) {}
@@ -508,6 +546,11 @@
     return `<div class="chips" data-field="${field}">` +
       options.map(o => chip(o, current === o, extraClass || "")).join("") + `</div>`;
   }
+  function chipGroupMulti(field, options, currentArr) {
+    const arr = Array.isArray(currentArr) ? currentArr : [];
+    return `<div class="chips" data-field="${field}">` +
+      options.map(o => chip(o, arr.includes(o))).join("") + `</div>`;
+  }
 
   function renderRegistrar() {
     const body = document.getElementById("reg-body");
@@ -552,7 +595,7 @@
         </div>
 
         <!-- RIGHT: form -->
-        <div class="card">
+        <div class="card compact">
           <div class="scorebug">
             <div><div class="who">Você</div><div class="sc tnum">${sc.me}</div></div>
             <div class="mid">·</div>
@@ -560,71 +603,87 @@
             <div class="setn">Set ${setNo}</div>
           </div>
 
-          <div class="field">
-            <label>Quem sacou</label>
-            ${chipGroup("server", ["me", "opp"], d.server, "big")
-              .replace('data-val="me"', 'data-val="me"').replace(">me<", ">Eu saquei<").replace(">opp<", ">Adversário sacou<")}
-          </div>
-
-          <div class="field">
-            <label>Saque — efeito · comprimento · direção</label>
-            ${chipGroup("serveSpin", SERVE_SPIN, d.serveSpin)}
-            <div style="height:6px"></div>
-            <div class="row" style="gap:8px">
-              <div style="flex:1">${chipGroup("serveLen", SERVE_LEN, d.serveLen)}</div>
-              <div style="flex:1">${chipGroup("serveSide", SIDE3, d.serveSide)}</div>
-            </div>
-          </div>
-
-          <div class="field">
-            <label>Tamanho do rally (nº de tacadas)</label>
-            <div style="display:flex;align-items:center;flex-wrap:wrap;gap:4px">
-              <div class="stepper">
-                <button id="rl-minus" aria-label="Menos uma tacada">−</button>
-                <span class="val tnum" id="rl-val">${d.rallyLen}</span>
-                <button id="rl-plus" aria-label="Mais uma tacada">+</button>
-              </div>
-              <div class="rally-quick" data-field="rallyLenQuick">
-                ${[1, 2, 3, 4, 5].map(n => `<button class="chip" data-val="${n}" aria-pressed="${d.rallyLen === n ? "true" : "false"}">${n}</button>`).join("")}
-                <button class="chip" data-val="7" aria-pressed="${d.rallyLen >= 7 ? "true" : "false"}">7+</button>
+          <div class="fgrid">
+            <div class="field">
+              <label>Quem sacou</label>
+              <div class="chips seg" data-field="server">
+                <button class="chip seg-btn" data-val="me" aria-pressed="${d.server === "me" ? "true" : "false"}">Eu saquei</button>
+                <button class="chip seg-btn" data-val="opp" aria-pressed="${d.server === "opp" ? "true" : "false"}">Adversário</button>
               </div>
             </div>
-          </div>
 
-          <div class="field">
-            <label>Quem ganhou o ponto</label>
-            <div class="chips" data-field="winner" style="gap:8px">
-              <button class="chip win big" aria-pressed="${d.winner === "me" ? "true" : "false"}" data-val="me">✓ Ponto meu</button>
-              <button class="chip loss big" aria-pressed="${d.winner === "opp" ? "true" : "false"}" data-val="opp">✕ Ponto do adversário</button>
+            <div class="field">
+              <label>Quem ganhou o ponto</label>
+              <div class="chips seg" data-field="winner">
+                <button class="chip win seg-btn" data-val="me" aria-pressed="${d.winner === "me" ? "true" : "false"}">✓ Meu</button>
+                <button class="chip loss seg-btn" data-val="opp" aria-pressed="${d.winner === "opp" ? "true" : "false"}">✕ Adversário</button>
+              </div>
             </div>
-          </div>
 
-          <div class="field">
-            <label>Como terminou</label>
-            ${chipGroup("endType", END_TYPES, d.endType)}
-          </div>
-
-          <div class="field">
-            <label>Golpe que decidiu <span class="muted-note" id="dec-who"></span></label>
-            ${chipGroup("endStroke", STROKES, d.endStroke)}
-            <div style="height:6px"></div>
-            ${chipGroup("endSide", SIDE2, d.endSide)}
-          </div>
-
-          <div class="field">
-            <label>Zona da bola decisiva (mesa do adversário)</label>
-            <div class="zone-net">↑ fundo</div>
-            <div class="zone-grid" data-field="zone">
-              ${ZONE_ROWS.map(row => SIDE3.map(col =>
-                `<div class="zc" data-x="${col}" data-y="${row}" aria-pressed="${d.zoneX === col && d.zoneY === row ? "true" : "false"}">${col}<br><small>${row}</small></div>`
-              ).join("")).join("")}
+            <div class="field span2">
+              <label>Saque</label>
+              <div class="subrow">
+                <span class="sublabel">Efeito<small>até 2</small></span>
+                ${chipGroupMulti("serveSpin", SERVE_SPIN, d.serveSpin)}
+              </div>
+              <div class="subrow">
+                <span class="sublabel">Comprim.</span>
+                ${chipGroup("serveLen", SERVE_LEN, d.serveLen)}
+              </div>
+              <div class="subrow">
+                <span class="sublabel">Direção</span>
+                ${chipGroup("serveSide", SIDE3, d.serveSide)}
+              </div>
             </div>
-            <div class="zone-net">rede ↓</div>
-          </div>
 
-          <div class="field">
-            <label>Nota <span class="muted-note">(opcional)</span></label>
-            <input class="txt" id="pt-note" placeholder="Ex.: bom deslocamento, leu bem o saque…" value="${escapeAttr(d.note)}">
+            <div class="field">
+              <label>Rally (nº de golpes)</label>
+              <div class="rally-line">
+                <div class="stepper">
+                  <button id="rl-minus" aria-label="Menos um golpe">−</button>
+                  <span class="val tnum" id="rl-val">${d.rallyLen}</span>
+                  <button id="rl-plus" aria-label="Mais um golpe">+</button>
+                </div>
+                <div class="rally-quick" data-field="rallyLenQuick">
+                  ${[1, 2, 3, 4, 5].map(n => `<button class="chip" data-val="${n}" aria-pressed="${d.rallyLen === n ? "true" : "false"}">${n}</button>`).join("")}
+                  <button class="chip" data-val="7" aria-pressed="${d.rallyLen >= 7 ? "true" : "false"}">7+</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="field">
+              <label>Como terminou</label>
+              ${chipGroup("endType", END_TYPES, d.endType)}
+            </div>
+
+            <div class="field span2">
+              <label>Golpe que fechou o ponto <span class="decider-pill neutral" id="dec-who">defina resultado + finalização</span></label>
+              <div class="rule-hint"><b>Winner</b> → golpe de quem <b>ganhou</b> · <b>Erro</b> → golpe de quem <b>errou</b></div>
+              <div class="subrow">
+                <span class="sublabel">Golpe</span>
+                ${chipGroup("endStroke", STROKES, d.endStroke)}
+              </div>
+              <div class="subrow">
+                <span class="sublabel">Lado</span>
+                ${chipGroup("endSide", SIDE2, d.endSide)}
+              </div>
+            </div>
+
+            <div class="field span2">
+              <label>Zona onde a bola decisiva quicou</label>
+              <div class="zone-flex">
+                <div class="zone-block">
+                  <div class="zone-net">fundo ↑</div>
+                  <div class="zone-grid" data-field="zone">
+                    ${ZONE_ROWS.map(row => SIDE3.map(col =>
+                      `<div class="zc" data-x="${col}" data-y="${row}" aria-pressed="${d.zoneX === col && d.zoneY === row ? "true" : "false"}">${col}<br><small>${row}</small></div>`
+                    ).join("")).join("")}
+                  </div>
+                  <div class="zone-net">↓ rede</div>
+                </div>
+                <input class="txt note-inline" id="pt-note" placeholder="Nota (opcional): leu bem o saque, bom deslocamento…" value="${escapeAttr(d.note)}">
+              </div>
+            </div>
           </div>
 
           <div class="save-row">
@@ -662,8 +721,9 @@
     const d = ui.draft;
     if (d.winner && d.endType) {
       const me = d.endType === "Winner" ? d.winner === "me" : d.winner === "opp";
-      el.textContent = me ? "— seu golpe" : "— golpe do adversário";
-    } else el.textContent = "";
+      el.textContent = me ? "registre o SEU golpe" : "registre o golpe do ADVERSÁRIO";
+      el.className = "decider-pill " + (me ? "me" : "opp");
+    } else { el.textContent = "defina resultado + finalização"; el.className = "decider-pill neutral"; }
   }
 
   function wireRegistrar() {
@@ -733,15 +793,23 @@
     }
     const val = elm.dataset.val;
     if (field === "rallyLenQuick") { setRally(parseInt(val, 10)); return; }
+    if (field === "serveSpin") {
+      const arr = d.serveSpin;
+      const idx = arr.indexOf(val);
+      if (idx >= 0) arr.splice(idx, 1);
+      else { if (arr.length >= SERVE_SPIN_MAX) { toast("Máximo de " + SERVE_SPIN_MAX + " efeitos por saque.", true); return; } arr.push(val); }
+      elm.parentElement.querySelectorAll(".chip").forEach(c => c.setAttribute("aria-pressed", d.serveSpin.includes(c.dataset.val) ? "true" : "false"));
+      return;
+    }
     // toggle-off if same (except server & winner which are exclusive selects that stay)
-    const single = ["serveSpin", "serveLen", "serveSide", "endType", "endStroke", "endSide"];
+    const single = ["serveLen", "serveSide", "endType", "endStroke", "endSide"];
     let newVal = val;
     if (single.includes(field) && d[field] === val) newVal = null;
     if (field === "server") newVal = val;
     if (field === "winner") newVal = val;
     d[field] = newVal;
     // reflect pressed state within group
-    elm.parentElement.querySelectorAll(".chip").forEach(c => c.setAttribute("aria-pressed", c.dataset.val === (d[field] == null ? " " : String(d[field])) ? "true" : "false"));
+    elm.parentElement.querySelectorAll(".chip").forEach(c => c.setAttribute("aria-pressed", c.dataset.val === (d[field] == null ? "__none__" : String(d[field])) ? "true" : "false"));
     if (field === "winner" || field === "endType") updateDeciderHint();
   }
 
@@ -758,7 +826,7 @@
     const p = DB.points.find(x => x.id === pid); if (!p) return;
     ui.editPointId = pid;
     ui.draft = {
-      server: p.server, serveSpin: p.serveSpin, serveLen: p.serveLen, serveSide: p.serveSide,
+      server: p.server, serveSpin: (Array.isArray(p.serveSpin) ? p.serveSpin.slice() : []), serveLen: p.serveLen, serveSide: p.serveSide,
       rallyLen: p.rallyLen, winner: p.winner, endType: p.endType, endStroke: p.endStroke, endSide: p.endSide,
       zoneX: p.zoneX, zoneY: p.zoneY, videoTime: p.videoTime, note: p.note || ""
     };
@@ -775,7 +843,7 @@
     if (ui.editPointId) {
       const p = DB.points.find(x => x.id === ui.editPointId);
       if (p) Object.assign(p, {
-        server: d.server, serveSpin: d.serveSpin, serveLen: d.serveLen, serveSide: d.serveSide,
+        server: d.server, serveSpin: d.serveSpin.slice(), serveLen: d.serveLen, serveSide: d.serveSide,
         rallyLen: d.rallyLen, winner: d.winner, endType: d.endType, endStroke: d.endStroke, endSide: d.endSide,
         zoneX: d.zoneX, zoneY: d.zoneY, videoTime: d.videoTime, note: d.note
       });
@@ -788,7 +856,7 @@
       if (ui._forceNewSet) { setNo = setNo + 1; ui._forceNewSet = false; }
       DB.points.push({
         id: uid(), matchId: m.id, setNo, pointNo: nextNo,
-        server: d.server, serveSpin: d.serveSpin, serveLen: d.serveLen, serveSide: d.serveSide,
+        server: d.server, serveSpin: d.serveSpin.slice(), serveLen: d.serveLen, serveSide: d.serveSide,
         rallyLen: d.rallyLen, winner: d.winner, endType: d.endType, endStroke: d.endStroke, endSide: d.endSide,
         zoneX: d.zoneX, zoneY: d.zoneY, videoTime: d.videoTime, note: d.note, createdAt: new Date().toISOString()
       });
@@ -796,7 +864,7 @@
     }
     persist();
     // keep server + serve context for speed, reset outcome fields
-    const keepServer = d.server, keepSpin = d.serveSpin, keepLen = d.serveLen, keepSide = d.serveSide;
+    const keepServer = d.server, keepSpin = d.serveSpin.slice(), keepLen = d.serveLen, keepSide = d.serveSide;
     ui.draft = freshDraft();
     ui.draft.server = keepServer; ui.draft.serveSpin = keepSpin; ui.draft.serveLen = keepLen; ui.draft.serveSide = keepSide;
     ui.videoTime = null;
@@ -913,7 +981,8 @@
     // serve effectiveness (my serves)
     const serveMap = {};
     serving.forEach(p => {
-      const key = (p.serveSpin || "?") + (p.serveSide ? " · " + p.serveSide : "");
+      const sp = spinsOf(p);
+      const key = (sp.length ? sp.join("+") : "?") + (p.serveSide ? " · " + p.serveSide : "");
       serveMap[key] = serveMap[key] || { key, n: 0, w: 0 };
       serveMap[key].n++; if (isWin(p)) serveMap[key].w++;
     });
@@ -922,7 +991,8 @@
     // receive vs opp serve
     const recvMap = {};
     receiving.forEach(p => {
-      const key = (p.serveSpin || "?");
+      const sp = spinsOf(p);
+      const key = sp.length ? sp.join("+") : "?";
       recvMap[key] = recvMap[key] || { key, n: 0, w: 0 };
       recvMap[key].n++; if (isWin(p)) recvMap[key].w++;
     });
@@ -956,7 +1026,7 @@
         <div class="tile"><div class="lab">Aproveitamento</div><div class="big tnum" style="color:${won >= total - won ? "var(--win)" : "var(--loss)"}">${pct(won, total)}%</div><div class="sub"><b class="w">${won}</b> ganhos · <b class="l">${total - won}</b> perdidos</div></div>
         <div class="tile"><div class="lab">Sacando</div><div class="big tnum">${pct(serving.filter(isWin).length, serving.length)}%</div><div class="sub">${serving.length} pontos no seu saque</div></div>
         <div class="tile"><div class="lab">Recebendo</div><div class="big tnum">${pct(receiving.filter(isWin).length, receiving.length)}%</div><div class="sub">${receiving.length} pontos recebendo</div></div>
-        <div class="tile"><div class="lab">3ª bola (ataque após saque)</div><div class="big tnum">${pct(thirdWon, thirdBall.length)}%</div><div class="sub">${thirdBall.length} rallies de 3 tacadas</div></div>
+        <div class="tile"><div class="lab">3ª bola (ataque após saque)</div><div class="big tnum">${pct(thirdWon, thirdBall.length)}%</div><div class="sub">${thirdBall.length} rallies de 3 golpes</div></div>
         <div class="tile"><div class="lab">Winners × Erros seus</div><div class="big tnum">${myWinners}<span style="color:var(--muted);font-size:20px"> / </span>${myForced + myUnforced}</div><div class="sub">${myUnforced} não forçados · ${myForced} forçados</div></div>
       </div>
 
@@ -974,7 +1044,7 @@
             </tr>`).join("")}
           </tbody>
         </table>
-        <p class="muted-note" style="margin:12px 0 0">Fases 1–4 pelo sacador (saque × recepção); rally de 5+ tacadas conta como estabilização. Aproveitamento &lt;50% = fase a melhorar.</p>
+        <p class="muted-note" style="margin:12px 0 0">Fases 1–4 pelo sacador (saque × recepção); rally de 5+ golpes conta como estabilização. Aproveitamento &lt;50% = fase a melhorar.</p>
       </div>
 
       <div class="grid2 mb16">
@@ -988,7 +1058,7 @@
           <h2>Comprimento do rally</h2>
           <div class="hbars">${rallyData.map(r => `
             <div class="hbar">
-              <span class="lbl">${r.k} tacadas</span>
+              <span class="lbl">${r.k} golpes</span>
               <div class="track"><span style="width:${pct(r.w, r.n)}%;background:${pct(r.w, r.n) >= 50 ? "var(--win)" : "var(--s-blue)"}"></span></div>
               <span class="val">${r.n ? pct(r.w, r.n) + "%" : "—"} <span style="color:var(--muted)">(${r.n})</span></span>
             </div>`).join("")}</div>
@@ -1100,17 +1170,49 @@
   // ---------------- Drive sync ----------------
   function mcpAvailable() { return typeof window.claude !== "undefined" && window.claude && window.claude.mcp; }
 
+  function driveEsc(s) { return String(s).replace(/'/g, ""); }
+
+  // Best-effort: ensure "Tênis de Mesa / App Análise Jogos" exists; return its id, or null (save to root).
+  async function ensureDriveFolder() {
+    try { const c = localStorage.getItem(DRIVE_FOLDER_CACHE); if (c) return c; } catch (e) {}
+    async function search(q) {
+      try { const r = await window.claude.mcp.callTool(DRIVE_SERVER, "search_files", { query: q }); return (r && r.payload && r.payload.files) || null; }
+      catch (e) { return null; }
+    }
+    async function findFolder(name, parentId) {
+      let files = await search(`title = '${driveEsc(name)}' and mimeType = '${DRIVE_FOLDER_MIME}'`);
+      if (files == null) files = await search(`title = '${driveEsc(name)}'`); // fallback if 'and' unsupported
+      if (!files) return null;
+      let cands = files.filter(f => f.mimeType === DRIVE_FOLDER_MIME);
+      if (parentId) { const nested = cands.filter(f => f.parentId === parentId); if (nested.length) cands = nested; }
+      return cands.length ? cands[0].id : null;
+    }
+    async function createFolder(name, parentId) {
+      const input = { title: name, contentMimeType: DRIVE_FOLDER_MIME };
+      if (parentId) input.parentId = parentId;
+      try { const r = await window.claude.mcp.callTool(DRIVE_SERVER, "create_file", input); return r && r.payload && r.payload.id; }
+      catch (e) { return null; }
+    }
+    try {
+      let rootId = await findFolder(DRIVE_FOLDER_ROOT, null);
+      if (!rootId) rootId = await createFolder(DRIVE_FOLDER_ROOT, null);
+      let subId = await findFolder(DRIVE_FOLDER_SUB, rootId);
+      if (!subId) subId = await createFolder(DRIVE_FOLDER_SUB, rootId);
+      if (subId) { try { localStorage.setItem(DRIVE_FOLDER_CACHE, subId); } catch (e) {} }
+      return subId || rootId || null;
+    } catch (e) { return null; }
+  }
+
   async function driveSave() {
     if (!mcpAvailable()) { toast("Sincronização com o Drive indisponível nesta visualização.", true); return; }
     const btn = document.getElementById("btn-drive-save"); btn.disabled = true; btn.textContent = "Salvando…";
     try {
+      const parentId = await ensureDriveFolder();
       const payload = JSON.stringify(Object.assign({}, DB, { updatedAt: new Date().toISOString() }));
-      const res = await window.claude.mcp.callTool(DRIVE_SERVER, "create_file", {
-        title: DRIVE_FILE, textContent: payload, contentMimeType: "application/json", disableConversionToGoogleType: true
-      });
-      const f = res && res.payload;
-      toast("Backup salvo no Google Drive ✓");
-      void f;
+      const input = { title: DRIVE_FILE, textContent: payload, contentMimeType: "application/json", disableConversionToGoogleType: true };
+      if (parentId) input.parentId = parentId;
+      await window.claude.mcp.callTool(DRIVE_SERVER, "create_file", input);
+      toast(parentId ? "Backup salvo no Drive (Tênis de Mesa/App Análise Jogos) ✓" : "Backup salvo no Google Drive ✓");
     } catch (err) {
       toast(driveErrMsg(err, "salvar"), true);
     } finally { btn.disabled = false; btn.textContent = "☁︎ Salvar no Drive"; }
@@ -1145,11 +1247,11 @@
   async function driveExportSheet() {
     if (!mcpAvailable()) { toast("Google Drive indisponível nesta visualização.", true); return; }
     try {
+      const parentId = await ensureDriveFolder();
       const csv = buildCSV();
-      const title = "Analise Tenis de Mesa " + todayStr();
-      await window.claude.mcp.callTool(DRIVE_SERVER, "create_file", {
-        title, textContent: csv, contentMimeType: "text/csv"
-      });
+      const input = { title: "Analise Tenis de Mesa " + todayStr(), textContent: csv, contentMimeType: "text/csv" };
+      if (parentId) input.parentId = parentId;
+      await window.claude.mcp.callTool(DRIVE_SERVER, "create_file", input);
       toast("Planilha criada no Google Drive (Google Sheets) ✓");
     } catch (err) { toast(driveErrMsg(err, "exportar"), true); }
   }
@@ -1175,7 +1277,7 @@
       const m = DB.matches.find(x => x.id === p.matchId) || {};
       const r = [
         m.id || "", m.opponent || "", m.date || "", p.setNo, p.pointNo, p.server === "me" ? "Eu" : "Adversario",
-        p.serveSpin || "", p.serveLen || "", p.serveSide || "", p.rallyLen, PHASES[phaseOf(p)].label,
+        spinsOf(p).join("+"), p.serveLen || "", p.serveSide || "", p.rallyLen, PHASES[phaseOf(p)].label,
         isWin(p) ? "Ganho" : "Perda", p.endType || "", p.endStroke || "", p.endSide || "",
         p.zoneX || "", p.zoneY || "", p.videoTime == null ? "" : p.videoTime, p.note || ""
       ].map(csvCell);
