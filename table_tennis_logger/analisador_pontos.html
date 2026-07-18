@@ -1,0 +1,1289 @@
+<title>Analisador de Pontos — Tênis de Mesa</title>
+<style>
+  /* ---------- Design tokens ---------- */
+  :root {
+    color-scheme: light;
+    --bg: #EBEEF2;
+    --surface: #FFFFFF;
+    --surface-2: #F4F6F9;
+    --surface-3: #EAEEF3;
+    --ink: #131820;
+    --ink-2: #55606E;
+    --muted: #8A94A2;
+    --line: #E1E6ED;
+    --line-2: #D2D9E2;
+    --brand: #12557F;
+    --brand-2: #1B6CA8;
+    --accent: #F2662E;
+    --accent-soft: #FDEBE1;
+    --win: #148A5A;
+    --win-soft: #E0F1E9;
+    --loss: #D23D3B;
+    --loss-soft: #FBE5E4;
+    --warn: #C88410;
+    --shadow: 0 1px 2px rgba(19,24,32,.06), 0 4px 16px rgba(19,24,32,.05);
+    /* dataviz roles */
+    --surface-1: #FCFCFB;
+    --text-primary: #131820;
+    --text-secondary: #55606E;
+    --grid: #E1E6ED;
+    --s-blue: #2a78d6;
+    --s-green: #148A5A;
+    --s-red: #d03b3b;
+    --s-yellow: #eda100;
+    --s-violet: #4a3aa7;
+    --mono: ui-monospace, "SF Mono", "SFMono-Regular", Menlo, Consolas, monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) {
+      color-scheme: dark;
+      --bg: #0C1015;
+      --surface: #151B24;
+      --surface-2: #1A212C;
+      --surface-3: #212a37;
+      --ink: #E9EEF4;
+      --ink-2: #9DA9B7;
+      --muted: #6C7784;
+      --line: #262E3A;
+      --line-2: #313b49;
+      --brand: #4AA3D8;
+      --brand-2: #67B4E0;
+      --accent: #FF7A43;
+      --accent-soft: #33231b;
+      --win: #34D08A;
+      --win-soft: #143026;
+      --loss: #F26E6C;
+      --loss-soft: #3a1f1f;
+      --warn: #E7B24E;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 6px 20px rgba(0,0,0,.35);
+      --surface-1: #1a1a19;
+      --text-primary: #E9EEF4;
+      --text-secondary: #9DA9B7;
+      --grid: #262E3A;
+      --s-blue: #3987e5;
+      --s-green: #34D08A;
+      --s-red: #e66767;
+      --s-yellow: #c98500;
+      --s-violet: #9085e9;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #0C1015; --surface: #151B24; --surface-2: #1A212C; --surface-3: #212a37;
+    --ink: #E9EEF4; --ink-2: #9DA9B7; --muted: #6C7784; --line: #262E3A; --line-2: #313b49;
+    --brand: #4AA3D8; --brand-2: #67B4E0; --accent: #FF7A43; --accent-soft: #33231b;
+    --win: #34D08A; --win-soft: #143026; --loss: #F26E6C; --loss-soft: #3a1f1f; --warn: #E7B24E;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 6px 20px rgba(0,0,0,.35);
+    --surface-1: #1a1a19; --text-primary: #E9EEF4; --text-secondary: #9DA9B7; --grid: #262E3A;
+    --s-blue: #3987e5; --s-green: #34D08A; --s-red: #e66767; --s-yellow: #c98500; --s-violet: #9085e9;
+  }
+
+  * { box-sizing: border-box; }
+  body { margin: 0; }
+  .app {
+    font-family: var(--sans);
+    color: var(--ink);
+    background: var(--bg);
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+    font-size: 15px;
+    line-height: 1.5;
+  }
+  .tnum { font-variant-numeric: tabular-nums; }
+  .mono { font-family: var(--mono); }
+
+  /* ---------- Top bar ---------- */
+  .topbar {
+    position: sticky; top: 0; z-index: 20;
+    display: flex; align-items: center; gap: 16px;
+    padding: 10px 20px;
+    background: color-mix(in srgb, var(--surface) 88%, transparent);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--line);
+    flex-wrap: wrap;
+  }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 650; letter-spacing: -.01em; }
+  .brand .ball {
+    width: 20px; height: 20px; border-radius: 50%;
+    background: radial-gradient(circle at 32% 30%, #ffb388, var(--accent) 62%, #c94a1c);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 25%, transparent);
+    flex: none;
+  }
+  .brand small { color: var(--muted); font-weight: 500; font-size: 12px; display: block; letter-spacing: 0; }
+  .nav { display: flex; gap: 2px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 11px; padding: 3px; }
+  .nav button {
+    font-family: inherit; font-size: 13.5px; font-weight: 550;
+    border: 0; background: transparent; color: var(--ink-2);
+    padding: 7px 15px; border-radius: 8px; cursor: pointer; transition: .12s;
+  }
+  .nav button:hover { color: var(--ink); }
+  .nav button[aria-selected="true"] { background: var(--surface); color: var(--brand); box-shadow: var(--shadow); }
+  .spacer { flex: 1 1 auto; }
+  .data-actions { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+  .savedot { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+  .savedot i { width: 7px; height: 7px; border-radius: 50%; background: var(--win); display: inline-block; }
+
+  button.btn {
+    font-family: inherit; font-size: 13px; font-weight: 550;
+    border: 1px solid var(--line-2); background: var(--surface); color: var(--ink);
+    padding: 7px 12px; border-radius: 9px; cursor: pointer; transition: .12s;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  button.btn:hover { border-color: var(--brand); color: var(--brand); }
+  button.btn.primary { background: var(--brand); color: #fff; border-color: var(--brand); }
+  button.btn.primary:hover { background: var(--brand-2); color: #fff; }
+  button.btn.ghost { background: transparent; border-color: transparent; color: var(--ink-2); }
+  button.btn.ghost:hover { background: var(--surface-2); color: var(--ink); }
+  button.btn.sm { padding: 5px 9px; font-size: 12px; border-radius: 7px; }
+  button.btn:disabled { opacity: .5; cursor: default; }
+
+  main { max-width: 1180px; margin: 0 auto; padding: 22px 20px 80px; }
+  .view { display: none; }
+  .view.active { display: block; animation: fade .2s ease; }
+  @keyframes fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) { .view.active { animation: none; } }
+
+  h1.page { font-size: 21px; margin: 0 0 3px; letter-spacing: -.02em; text-wrap: balance; }
+  .page-sub { color: var(--ink-2); font-size: 13.5px; margin: 0 0 20px; }
+
+  .card {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+    box-shadow: var(--shadow); padding: 18px;
+  }
+  .card h2 { font-size: 14px; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-2); margin: 0 0 14px; font-weight: 650; }
+  .card h2 .hint { text-transform: none; letter-spacing: 0; font-weight: 500; color: var(--muted); font-size: 12px; }
+
+  /* ---------- Registrar layout ---------- */
+  .reg-grid { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+  @media (max-width: 900px) { .reg-grid { grid-template-columns: 1fr; } }
+
+  .video-wrap { position: relative; background: #05070a; border-radius: 12px; overflow: hidden; aspect-ratio: 16/9; display: flex; align-items: center; justify-content: center; border: 1px solid var(--line); }
+  .video-wrap video { width: 100%; height: 100%; object-fit: contain; background: #05070a; }
+  .video-empty { color: #7b8794; text-align: center; padding: 24px; font-size: 13.5px; }
+  .video-empty .ball { width: 34px; height: 34px; border-radius: 50%; margin: 0 auto 10px; background: radial-gradient(circle at 32% 30%, #ffb388, var(--accent) 62%, #c94a1c); }
+  .vid-controls { display: flex; align-items: center; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+  .time-badge { font-family: var(--mono); font-size: 13px; background: var(--surface-2); border: 1px solid var(--line); padding: 5px 10px; border-radius: 8px; color: var(--ink-2); }
+  .time-badge.armed { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
+
+  .scorebug { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: var(--brand); color: #fff; border-radius: 11px; margin-bottom: 14px; }
+  .scorebug .who { font-size: 12px; opacity: .82; text-transform: uppercase; letter-spacing: .05em; }
+  .scorebug .sc { font-family: var(--mono); font-size: 26px; font-weight: 600; line-height: 1; }
+  .scorebug .mid { opacity: .5; font-size: 20px; }
+  .scorebug .setn { margin-left: auto; font-size: 12px; background: rgba(255,255,255,.16); padding: 4px 9px; border-radius: 7px; }
+
+  .field { margin-bottom: 13px; }
+  .field > label { display: block; font-size: 11.5px; font-weight: 650; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin-bottom: 6px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip {
+    font-family: inherit; font-size: 13px; font-weight: 500;
+    border: 1px solid var(--line-2); background: var(--surface); color: var(--ink-2);
+    padding: 7px 12px; border-radius: 9px; cursor: pointer; transition: .1s; user-select: none;
+  }
+  .chip:hover { border-color: var(--brand); color: var(--ink); }
+  .chip[aria-pressed="true"] { background: var(--brand); border-color: var(--brand); color: #fff; }
+  .chip.win[aria-pressed="true"] { background: var(--win); border-color: var(--win); }
+  .chip.loss[aria-pressed="true"] { background: var(--loss); border-color: var(--loss); }
+  .chip.big { padding: 12px 18px; font-size: 15px; font-weight: 600; flex: 1; text-align: center; }
+
+  .stepper { display: inline-flex; align-items: center; gap: 0; border: 1px solid var(--line-2); border-radius: 9px; overflow: hidden; }
+  .stepper button { font-family: var(--mono); border: 0; background: var(--surface); color: var(--ink); width: 34px; height: 34px; font-size: 17px; cursor: pointer; }
+  .stepper button:hover { background: var(--surface-2); color: var(--brand); }
+  .stepper .val { min-width: 38px; text-align: center; font-family: var(--mono); font-size: 15px; font-weight: 600; }
+  .rally-quick { display: inline-flex; gap: 6px; margin-left: 8px; }
+
+  .zone-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; max-width: 280px; }
+  .zone-grid .zc {
+    aspect-ratio: 3/2; border: 1px solid var(--line-2); background: var(--surface-2); border-radius: 7px;
+    cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 11px; color: var(--muted); transition: .1s;
+  }
+  .zone-grid .zc:hover { border-color: var(--brand); }
+  .zone-grid .zc[aria-pressed="true"] { background: var(--brand); color: #fff; border-color: var(--brand); }
+  .zone-net { font-size: 10.5px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); text-align: center; margin: 6px 0 3px; }
+
+  input.txt, textarea.txt {
+    font-family: inherit; font-size: 14px; width: 100%; padding: 9px 11px;
+    border: 1px solid var(--line-2); border-radius: 9px; background: var(--surface-2); color: var(--ink);
+  }
+  input.txt:focus, textarea.txt:focus { outline: 2px solid var(--brand); outline-offset: -1px; border-color: var(--brand); }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; }
+  .row > * { flex: 1; min-width: 0; }
+
+  .save-row { display: flex; gap: 10px; margin-top: 16px; }
+  .save-row .btn.primary { flex: 1; justify-content: center; padding: 13px; font-size: 15px; border-radius: 11px; }
+
+  /* ---------- Point list ---------- */
+  .plist { margin-top: 18px; }
+  .plist .phead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .pt {
+    display: grid; grid-template-columns: 30px 1fr auto; gap: 10px; align-items: center;
+    padding: 9px 11px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); margin-bottom: 6px;
+  }
+  .pt .n { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+  .pt .desc { font-size: 13px; color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pt .desc b { color: var(--ink); font-weight: 600; }
+  .pt .res { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 20px; }
+  .pt .res.w { background: var(--win-soft); color: var(--win); }
+  .pt .res.l { background: var(--loss-soft); color: var(--loss); }
+  .pt .acts { display: flex; gap: 3px; }
+  .pt .acts button { border: 0; background: transparent; color: var(--muted); cursor: pointer; padding: 4px 6px; border-radius: 6px; font-size: 12px; }
+  .pt .acts button:hover { background: var(--surface-2); color: var(--ink); }
+  .pt .tag { display: inline-block; font-size: 10.5px; padding: 1px 6px; border-radius: 5px; background: var(--surface-3); color: var(--muted); margin-left: 4px; }
+
+  /* ---------- Analysis ---------- */
+  .filters { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 18px; }
+  .filters select { font-family: inherit; font-size: 13px; padding: 7px 10px; border: 1px solid var(--line-2); border-radius: 9px; background: var(--surface); color: var(--ink); }
+  .filters label { font-size: 12px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 18px; }
+  .tile { background: var(--surface); border: 1px solid var(--line); border-radius: 13px; padding: 15px 16px; box-shadow: var(--shadow); }
+  .tile .lab { font-size: 11.5px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); font-weight: 600; margin-bottom: 7px; }
+  .tile .big { font-family: var(--mono); font-size: 30px; font-weight: 600; line-height: 1; letter-spacing: -.02em; }
+  .tile .sub { font-size: 12px; color: var(--ink-2); margin-top: 6px; }
+  .tile .sub b.w { color: var(--win); } .tile .sub b.l { color: var(--loss); }
+
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 820px) { .grid2 { grid-template-columns: 1fr; } }
+  .mb16 { margin-bottom: 16px; }
+
+  table.ph { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  table.ph th, table.ph td { text-align: left; padding: 9px 8px; border-bottom: 1px solid var(--line); }
+  table.ph th { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); font-weight: 600; }
+  table.ph td.num, table.ph th.num { text-align: right; font-family: var(--mono); }
+  table.ph .barcell { width: 34%; }
+  .minibar { height: 8px; background: var(--surface-3); border-radius: 5px; overflow: hidden; }
+  .minibar > span { display: block; height: 100%; border-radius: 5px; }
+
+  .hbars { display: flex; flex-direction: column; gap: 9px; }
+  .hbar { display: grid; grid-template-columns: 118px 1fr 52px; gap: 10px; align-items: center; font-size: 13px; }
+  .hbar .lbl { color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .hbar .track { height: 18px; background: var(--surface-3); border-radius: 5px; position: relative; overflow: hidden; }
+  .hbar .track > span { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 5px; min-width: 3px; }
+  .hbar .val { font-family: var(--mono); font-size: 12.5px; text-align: right; color: var(--ink-2); }
+  .legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--ink-2); margin-top: 12px; }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: middle; }
+
+  .heat { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; max-width: 300px; }
+  .heat .hc { aspect-ratio: 3/2; border-radius: 7px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-family: var(--mono); font-size: 13px; border: 1px solid var(--line); }
+  .heat .hc small { font-family: var(--sans); font-size: 10px; opacity: .7; }
+
+  .insight { display: flex; gap: 11px; padding: 12px 14px; border-radius: 11px; margin-bottom: 9px; align-items: flex-start; border: 1px solid var(--line); background: var(--surface-2); }
+  .insight .ic { flex: none; width: 26px; height: 26px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 14px; }
+  .insight.good .ic { background: var(--win-soft); color: var(--win); }
+  .insight.warn .ic { background: var(--accent-soft); color: var(--accent); }
+  .insight .tx { font-size: 13.5px; }
+  .insight .tx b { font-weight: 650; }
+  .insight .tx small { color: var(--muted); display: block; margin-top: 2px; font-size: 12px; }
+
+  .empty { text-align: center; padding: 46px 20px; color: var(--muted); }
+  .empty .ball { width: 40px; height: 40px; border-radius: 50%; margin: 0 auto 14px; background: radial-gradient(circle at 32% 30%, #ffb388, var(--accent) 62%, #c94a1c); opacity: .85; }
+  .empty h3 { color: var(--ink); margin: 0 0 6px; font-size: 16px; }
+
+  /* ---------- Matches ---------- */
+  .match-item { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center; padding: 14px 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); margin-bottom: 8px; box-shadow: var(--shadow); }
+  .match-item.sel { border-color: var(--brand); box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand) 22%, transparent); }
+  .match-item .mi-t { font-weight: 600; font-size: 15px; }
+  .match-item .mi-s { font-size: 12.5px; color: var(--ink-2); margin-top: 3px; }
+  .match-item .mi-s .tnum { font-family: var(--mono); }
+
+  dialog.modal { border: 1px solid var(--line); border-radius: 16px; padding: 0; background: var(--surface); color: var(--ink); max-width: 440px; width: 92vw; box-shadow: 0 20px 60px rgba(0,0,0,.35); }
+  dialog.modal::backdrop { background: rgba(8,11,15,.55); backdrop-filter: blur(2px); }
+  dialog .mhead { padding: 16px 18px; border-bottom: 1px solid var(--line); font-weight: 650; }
+  dialog .mbody { padding: 18px; display: flex; flex-direction: column; gap: 13px; }
+  dialog .mfoot { padding: 14px 18px; border-top: 1px solid var(--line); display: flex; gap: 9px; justify-content: flex-end; }
+  dialog label.fl { font-size: 12px; font-weight: 600; color: var(--ink-2); display: block; margin-bottom: 5px; }
+
+  #toast { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%) translateY(20px); background: var(--ink); color: var(--surface); padding: 11px 18px; border-radius: 11px; font-size: 13.5px; box-shadow: 0 10px 30px rgba(0,0,0,.3); opacity: 0; pointer-events: none; transition: .25s; z-index: 100; max-width: 90vw; }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  #toast.err { background: var(--loss); color: #fff; }
+
+  .divider { height: 1px; background: var(--line); margin: 16px 0; }
+  a.link { color: var(--brand); cursor: pointer; text-decoration: none; }
+  a.link:hover { text-decoration: underline; }
+  .muted-note { font-size: 12px; color: var(--muted); }
+</style>
+
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <span class="ball" aria-hidden="true"></span>
+      <div>Analisador de Pontos<small>Tênis de mesa · análise pós-jogo</small></div>
+    </div>
+    <nav class="nav" role="tablist" aria-label="Seções">
+      <button role="tab" data-view="registrar" aria-selected="true">Registrar</button>
+      <button role="tab" data-view="analise" aria-selected="false">Análise</button>
+      <button role="tab" data-view="partidas" aria-selected="false">Partidas</button>
+    </nav>
+    <span class="spacer"></span>
+    <div class="data-actions">
+      <span class="savedot" id="savedot"><i></i>Salvo localmente</span>
+      <button class="btn sm" id="btn-drive-save" title="Salvar backup no Google Drive">☁︎ Salvar no Drive</button>
+      <button class="btn sm" id="btn-drive-load" title="Carregar do Google Drive">⤓ Carregar do Drive</button>
+      <button class="btn sm ghost" id="btn-menu" title="Mais opções">⋯</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- ============ REGISTRAR ============ -->
+    <section class="view active" id="view-registrar" role="tabpanel">
+      <div id="reg-body"></div>
+    </section>
+
+    <!-- ============ ANÁLISE ============ -->
+    <section class="view" id="view-analise" role="tabpanel">
+      <h1 class="page">Análise do jogo</h1>
+      <p class="page-sub">Táticas que rendem mais pontos e onde estão suas oportunidades de melhoria — pelo método das 3 fases do tênis de mesa.</p>
+      <div id="ana-body"></div>
+    </section>
+
+    <!-- ============ PARTIDAS ============ -->
+    <section class="view" id="view-partidas" role="tabpanel">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+        <div>
+          <h1 class="page">Partidas</h1>
+          <p class="page-sub" style="margin:0;">Cada jogo que você analisa. Selecione uma para registrar pontos.</p>
+        </div>
+        <button class="btn primary" id="btn-new-match">+ Nova partida</button>
+      </div>
+      <div id="match-list"></div>
+    </section>
+  </main>
+
+  <div id="toast" role="status" aria-live="polite"></div>
+</div>
+
+<!-- Match modal -->
+<dialog class="modal" id="match-modal">
+  <form method="dialog">
+    <div class="mhead" id="mm-title">Nova partida</div>
+    <div class="mbody">
+      <div>
+        <label class="fl" for="mm-opp">Adversário</label>
+        <input class="txt" id="mm-opp" placeholder="Nome do adversário" autocomplete="off">
+      </div>
+      <div class="row">
+        <div>
+          <label class="fl" for="mm-date">Data</label>
+          <input class="txt" id="mm-date" type="date">
+        </div>
+        <div>
+          <label class="fl" for="mm-hand">Sua mão</label>
+          <select class="txt" id="mm-hand"><option value="destro">Destro</option><option value="canhoto">Canhoto</option></select>
+        </div>
+      </div>
+      <div>
+        <label class="fl" for="mm-event">Torneio / contexto <span class="muted-note">(opcional)</span></label>
+        <input class="txt" id="mm-event" placeholder="Ex.: Liga regional — 3ª rodada" autocomplete="off">
+      </div>
+      <div>
+        <label class="fl" for="mm-note">Observações <span class="muted-note">(opcional)</span></label>
+        <textarea class="txt" id="mm-note" rows="2" placeholder="Estilo do adversário, condições…"></textarea>
+      </div>
+    </div>
+    <div class="mfoot">
+      <button class="btn ghost" value="cancel" type="submit">Cancelar</button>
+      <button class="btn primary" id="mm-save" value="save" type="submit">Salvar</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Menu modal -->
+<dialog class="modal" id="menu-modal">
+  <div class="mhead">Dados e backup</div>
+  <div class="mbody">
+    <button class="btn" id="mn-export-json">⤓ Baixar backup (JSON)</button>
+    <button class="btn" id="mn-import-json">⤒ Importar backup (JSON)</button>
+    <button class="btn" id="mn-sheet">📊 Exportar planilha para Google Sheets</button>
+    <button class="btn" id="mn-txt">⤓ Baixar pontos (CSV/.txt)</button>
+    <div class="divider"></div>
+    <button class="btn" id="mn-theme">◐ Alternar tema claro/escuro</button>
+    <button class="btn ghost" id="mn-reset" style="color:var(--loss)">Apagar todos os dados</button>
+    <p class="muted-note" style="margin:2px 0 0">Os dados ficam salvos neste navegador. Use o Drive ou o backup JSON para não perder e sincronizar entre aparelhos.</p>
+  </div>
+  <div class="mfoot"><button class="btn ghost" id="mn-close">Fechar</button></div>
+  <input type="file" id="file-import" accept="application/json,.json" hidden>
+</dialog>
+
+<script>
+"use strict";
+(function () {
+  // ---------------- Constants / option sets ----------------
+  const LS_KEY = "ttm-analyzer-v1";
+  const DRIVE_FILE = "ttm-analyzer-data.json";
+  const DRIVE_SERVER = "Google Drive";
+
+  const SERVE_SPIN = ["Backspin", "Lateral", "Sem efeito", "Topspin", "Misto"];
+  const SERVE_LEN = ["Curto", "Meio", "Longo"];
+  const SIDE3 = ["FH", "Meio", "BH"];
+  const STROKES = ["Ataque (topspin)", "Contra-ataque", "Bloqueio", "Push/Corte", "Flick", "Smash", "Drive", "Saque (ace)", "Deixada", "Recepção", "Outro"];
+  const SIDE2 = ["FH", "BH"];
+  const END_TYPES = ["Winner", "Erro forçado", "Erro não forçado"];
+  const ZONE_ROWS = ["Curta", "Longa"];
+
+  const PHASES = {
+    serve: { label: "Saque e Ataque", color: "var(--s-blue)" },
+    receive: { label: "Recepção", color: "var(--s-yellow)" },
+    rally: { label: "Rally (5+)", color: "var(--s-violet)" }
+  };
+
+  // ---------------- State ----------------
+  let DB = load();
+  let ui = {
+    view: "registrar",
+    matchId: DB.matches.length ? DB.matches[DB.matches.length - 1].id : null,
+    editMatchId: null,
+    editPointId: null,
+    filterMatch: "all",
+    videoUrl: null,
+    videoTime: null,       // armed captured time
+    draft: freshDraft()
+  };
+
+  function freshDraft() {
+    return {
+      server: "me", serveSpin: null, serveLen: null, serveSide: null,
+      rallyLen: 3, winner: null, endType: null, endStroke: null, endSide: null,
+      zoneX: null, zoneY: null, videoTime: null, note: ""
+    };
+  }
+
+  function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+
+  function load() {
+    try {
+      const raw = localStorage.getItem(LS_KEY);
+      if (raw) { const d = JSON.parse(raw); if (d && d.matches && d.points) return d; }
+    } catch (e) {}
+    return { schema: "ttm-analyzer", version: 1, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), matches: [], points: [] };
+  }
+  function persist() {
+    DB.updatedAt = new Date().toISOString();
+    try { localStorage.setItem(LS_KEY, JSON.stringify(DB)); } catch (e) {}
+    flashSaved();
+  }
+  let saveTimer;
+  function flashSaved() {
+    const d = document.getElementById("savedot");
+    d.innerHTML = "<i></i>Salvando…";
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => { d.innerHTML = "<i></i>Salvo localmente"; }, 500);
+  }
+
+  // ---------------- Derived helpers ----------------
+  function phaseOf(p) { return p.rallyLen >= 5 ? "rally" : (p.server === "me" ? "serve" : "receive"); }
+  function isWin(p) { return p.winner === "me"; }
+  // Author of the deciding stroke: winner if Winner, loser if error
+  function deciderIsMe(p) {
+    if (p.endType === "Winner") return p.winner === "me";
+    return p.winner === "opp"; // an error by the point-loser; loser is me when opp won
+  }
+  function matchPoints(mid) { return DB.points.filter(p => p.matchId === mid).sort((a, b) => a.pointNo - b.pointNo); }
+  function currentMatch() { return DB.matches.find(m => m.id === ui.matchId) || null; }
+
+  function setScore(mid, setNo) {
+    let me = 0, opp = 0;
+    matchPoints(mid).filter(p => p.setNo === setNo).forEach(p => { isWin(p) ? me++ : opp++; });
+    return { me, opp };
+  }
+  function currentSetNo(mid) {
+    const ps = matchPoints(mid);
+    return ps.length ? ps[ps.length - 1].setNo : 1;
+  }
+
+  // ---------------- Rendering: root ----------------
+  function render() {
+    document.querySelectorAll(".nav button").forEach(b => b.setAttribute("aria-selected", b.dataset.view === ui.view ? "true" : "false"));
+    document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
+    document.getElementById("view-" + ui.view).classList.add("active");
+    if (ui.view === "registrar") renderRegistrar();
+    else if (ui.view === "analise") renderAnalise();
+    else renderPartidas();
+  }
+
+  // ---------------- Registrar ----------------
+  function chip(text, pressed, attrs) {
+    return `<button class="chip ${attrs || ""}" aria-pressed="${pressed ? "true" : "false"}" data-val="${escapeAttr(text)}">${esc(text)}</button>`;
+  }
+  function chipGroup(field, options, current, extraClass) {
+    return `<div class="chips" data-field="${field}">` +
+      options.map(o => chip(o, current === o, extraClass || "")).join("") + `</div>`;
+  }
+
+  function renderRegistrar() {
+    const body = document.getElementById("reg-body");
+    const m = currentMatch();
+    if (!m) {
+      body.innerHTML = `<div class="empty"><div class="ball"></div><h3>Nenhuma partida selecionada</h3>
+        <p>Crie uma partida para começar a registrar os pontos enquanto assiste à gravação.</p>
+        <button class="btn primary" id="reg-new">+ Nova partida</button></div>`;
+      document.getElementById("reg-new").onclick = () => openMatchModal(null);
+      return;
+    }
+    const d = ui.draft;
+    const setNo = currentSetNo(m.id);
+    const sc = setScore(m.id, setNo);
+    const pts = matchPoints(m.id);
+
+    body.innerHTML = `
+      <div class="reg-grid">
+        <!-- LEFT: video -->
+        <div>
+          <div class="card" style="padding:14px">
+            <div class="video-wrap" id="video-wrap">
+              ${ui.videoUrl
+                ? `<video id="vid" src="${ui.videoUrl}" controls playsinline></video>`
+                : `<div class="video-empty"><div class="ball"></div>Carregue a gravação do jogo (arquivo de vídeo)<br><br>
+                    <button class="btn" id="pick-video">Escolher vídeo…</button></div>`}
+            </div>
+            <div class="vid-controls">
+              ${ui.videoUrl ? `<button class="btn sm" id="cap-time">◉ Capturar tempo</button>
+                 <span class="time-badge ${ui.videoTime != null ? "armed" : ""}" id="time-badge">${ui.videoTime != null ? fmtTime(ui.videoTime) : "—:—"}</span>
+                 <button class="btn sm ghost" id="change-video">Trocar vídeo</button>` : ``}
+              <input type="file" id="video-input" accept="video/*" hidden>
+            </div>
+          </div>
+          <div class="plist">
+            <div class="phead">
+              <h2 style="margin:0;font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-2)">Pontos registrados · ${pts.length}</h2>
+              ${pts.length ? `<button class="btn sm ghost" id="new-set">+ Novo set</button>` : ``}
+            </div>
+            <div id="pt-list">${renderPointList(pts)}</div>
+          </div>
+        </div>
+
+        <!-- RIGHT: form -->
+        <div class="card">
+          <div class="scorebug">
+            <div><div class="who">Você</div><div class="sc tnum">${sc.me}</div></div>
+            <div class="mid">·</div>
+            <div><div class="who">${esc(m.opponent || "Adversário")}</div><div class="sc tnum">${sc.opp}</div></div>
+            <div class="setn">Set ${setNo}</div>
+          </div>
+
+          <div class="field">
+            <label>Quem sacou</label>
+            ${chipGroup("server", ["me", "opp"], d.server, "big")
+              .replace('data-val="me"', 'data-val="me"').replace(">me<", ">Eu saquei<").replace(">opp<", ">Adversário sacou<")}
+          </div>
+
+          <div class="field">
+            <label>Saque — efeito · comprimento · direção</label>
+            ${chipGroup("serveSpin", SERVE_SPIN, d.serveSpin)}
+            <div style="height:6px"></div>
+            <div class="row" style="gap:8px">
+              <div style="flex:1">${chipGroup("serveLen", SERVE_LEN, d.serveLen)}</div>
+              <div style="flex:1">${chipGroup("serveSide", SIDE3, d.serveSide)}</div>
+            </div>
+          </div>
+
+          <div class="field">
+            <label>Tamanho do rally (nº de tacadas)</label>
+            <div style="display:flex;align-items:center;flex-wrap:wrap;gap:4px">
+              <div class="stepper">
+                <button id="rl-minus" aria-label="Menos uma tacada">−</button>
+                <span class="val tnum" id="rl-val">${d.rallyLen}</span>
+                <button id="rl-plus" aria-label="Mais uma tacada">+</button>
+              </div>
+              <div class="rally-quick" data-field="rallyLenQuick">
+                ${[1, 2, 3, 4, 5].map(n => `<button class="chip" data-val="${n}" aria-pressed="${d.rallyLen === n ? "true" : "false"}">${n}</button>`).join("")}
+                <button class="chip" data-val="7" aria-pressed="${d.rallyLen >= 7 ? "true" : "false"}">7+</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="field">
+            <label>Quem ganhou o ponto</label>
+            <div class="chips" data-field="winner" style="gap:8px">
+              <button class="chip win big" aria-pressed="${d.winner === "me" ? "true" : "false"}" data-val="me">✓ Ponto meu</button>
+              <button class="chip loss big" aria-pressed="${d.winner === "opp" ? "true" : "false"}" data-val="opp">✕ Ponto do adversário</button>
+            </div>
+          </div>
+
+          <div class="field">
+            <label>Como terminou</label>
+            ${chipGroup("endType", END_TYPES, d.endType)}
+          </div>
+
+          <div class="field">
+            <label>Golpe que decidiu <span class="muted-note" id="dec-who"></span></label>
+            ${chipGroup("endStroke", STROKES, d.endStroke)}
+            <div style="height:6px"></div>
+            ${chipGroup("endSide", SIDE2, d.endSide)}
+          </div>
+
+          <div class="field">
+            <label>Zona da bola decisiva (mesa do adversário)</label>
+            <div class="zone-net">↑ fundo</div>
+            <div class="zone-grid" data-field="zone">
+              ${ZONE_ROWS.map(row => SIDE3.map(col =>
+                `<div class="zc" data-x="${col}" data-y="${row}" aria-pressed="${d.zoneX === col && d.zoneY === row ? "true" : "false"}">${col}<br><small>${row}</small></div>`
+              ).join("")).join("")}
+            </div>
+            <div class="zone-net">rede ↓</div>
+          </div>
+
+          <div class="field">
+            <label>Nota <span class="muted-note">(opcional)</span></label>
+            <input class="txt" id="pt-note" placeholder="Ex.: bom deslocamento, leu bem o saque…" value="${escapeAttr(d.note)}">
+          </div>
+
+          <div class="save-row">
+            <button class="btn primary" id="save-point">${ui.editPointId ? "Atualizar ponto" : "Salvar ponto"}</button>
+            ${ui.editPointId ? `<button class="btn ghost" id="cancel-edit">Cancelar</button>` : ``}
+          </div>
+        </div>
+      </div>`;
+
+    wireRegistrar();
+    updateDeciderHint();
+  }
+
+  function renderPointList(pts) {
+    if (!pts.length) return `<p class="muted-note" style="padding:4px 2px">Nenhum ponto ainda. Assista à gravação e registre ponto a ponto ao lado. →</p>`;
+    return pts.slice().reverse().map(p => {
+      const win = isWin(p);
+      const strokeTxt = p.endStroke ? `${p.endStroke}${p.endSide ? " " + p.endSide : ""}` : "—";
+      const serveTxt = p.server === "me" ? "seu saque" : "saque adv.";
+      const cause = p.endType || "";
+      return `<div class="pt" data-pid="${p.id}">
+        <span class="n tnum">#${p.pointNo}</span>
+        <span class="desc"><b>${win ? "Ganhou" : "Perdeu"}</b> · ${esc(serveTxt)} · rally ${p.rallyLen} · ${esc(cause)} <span class="tag">${esc(strokeTxt)}</span>${p.videoTime != null ? `<span class="tag mono">${fmtTime(p.videoTime)}</span>` : ""}</span>
+        <span style="display:flex;align-items:center;gap:6px">
+          <span class="res ${win ? "w" : "l"}">${win ? "GANHO" : "PERDA"}</span>
+          <span class="acts">${p.videoTime != null ? `<button data-act="seek" title="Ir ao tempo no vídeo">▶</button>` : ""}<button data-act="edit" title="Editar">✎</button><button data-act="del" title="Excluir">🗑</button></span>
+        </span>
+      </div>`;
+    }).join("");
+  }
+
+  function updateDeciderHint() {
+    const el = document.getElementById("dec-who");
+    if (!el) return;
+    const d = ui.draft;
+    if (d.winner && d.endType) {
+      const me = d.endType === "Winner" ? d.winner === "me" : d.winner === "opp";
+      el.textContent = me ? "— seu golpe" : "— golpe do adversário";
+    } else el.textContent = "";
+  }
+
+  function wireRegistrar() {
+    const pick = document.getElementById("pick-video");
+    const vinput = document.getElementById("video-input");
+    if (pick) pick.onclick = () => vinput.click();
+    const changeV = document.getElementById("change-video");
+    if (changeV) changeV.onclick = () => vinput.click();
+    if (vinput) vinput.onchange = e => {
+      const f = e.target.files[0]; if (!f) return;
+      if (ui.videoUrl) URL.revokeObjectURL(ui.videoUrl);
+      ui.videoUrl = URL.createObjectURL(f);
+      ui.videoTime = null;
+      renderRegistrar();
+    };
+    const cap = document.getElementById("cap-time");
+    if (cap) cap.onclick = () => {
+      const v = document.getElementById("vid");
+      if (v) { ui.videoTime = Math.floor(v.currentTime); ui.draft.videoTime = ui.videoTime;
+        const b = document.getElementById("time-badge"); b.textContent = fmtTime(ui.videoTime); b.classList.add("armed"); }
+    };
+
+    // chip groups
+    document.querySelectorAll("[data-field]").forEach(group => {
+      const field = group.dataset.field;
+      group.querySelectorAll(".chip, .zc").forEach(chipEl => {
+        chipEl.onclick = () => handleFieldClick(field, chipEl);
+      });
+    });
+
+    // rally stepper
+    const minus = document.getElementById("rl-minus"), plus = document.getElementById("rl-plus");
+    if (minus) minus.onclick = () => setRally(Math.max(1, ui.draft.rallyLen - 1));
+    if (plus) plus.onclick = () => setRally(ui.draft.rallyLen + 1);
+
+    const noteEl = document.getElementById("pt-note");
+    if (noteEl) noteEl.oninput = () => { ui.draft.note = noteEl.value; };
+
+    document.getElementById("save-point").onclick = savePoint;
+    const ce = document.getElementById("cancel-edit");
+    if (ce) ce.onclick = () => { ui.editPointId = null; ui.draft = freshDraft(); renderRegistrar(); };
+
+    const ns = document.getElementById("new-set");
+    if (ns) ns.onclick = () => { toast("Novo set — o próximo ponto abre o set " + (currentSetNo(ui.matchId) + 1)); ui._forceNewSet = true; };
+
+    // point list actions
+    document.querySelectorAll("#pt-list .pt").forEach(row => {
+      const pid = row.dataset.pid;
+      row.querySelectorAll(".acts button").forEach(btn => {
+        btn.onclick = () => {
+          const act = btn.dataset.act;
+          if (act === "del") { if (confirm("Excluir este ponto?")) { DB.points = DB.points.filter(p => p.id !== pid); persist(); renderRegistrar(); } }
+          else if (act === "edit") startEditPoint(pid);
+          else if (act === "seek") { const p = DB.points.find(x => x.id === pid); const v = document.getElementById("vid"); if (p && v) { v.currentTime = p.videoTime; v.play && v.play().catch(()=>{}); } }
+        };
+      });
+    });
+  }
+
+  function handleFieldClick(field, elm) {
+    const d = ui.draft;
+    if (field === "zone") {
+      const x = elm.dataset.x, y = elm.dataset.y;
+      if (d.zoneX === x && d.zoneY === y) { d.zoneX = null; d.zoneY = null; } else { d.zoneX = x; d.zoneY = y; }
+      document.querySelectorAll('[data-field="zone"] .zc').forEach(z => z.setAttribute("aria-pressed", (z.dataset.x === d.zoneX && z.dataset.y === d.zoneY) ? "true" : "false"));
+      return;
+    }
+    const val = elm.dataset.val;
+    if (field === "rallyLenQuick") { setRally(parseInt(val, 10)); return; }
+    // toggle-off if same (except server & winner which are exclusive selects that stay)
+    const single = ["serveSpin", "serveLen", "serveSide", "endType", "endStroke", "endSide"];
+    let newVal = val;
+    if (single.includes(field) && d[field] === val) newVal = null;
+    if (field === "server") newVal = val;
+    if (field === "winner") newVal = val;
+    d[field] = newVal;
+    // reflect pressed state within group
+    elm.parentElement.querySelectorAll(".chip").forEach(c => c.setAttribute("aria-pressed", c.dataset.val === (d[field] == null ? " " : String(d[field])) ? "true" : "false"));
+    if (field === "winner" || field === "endType") updateDeciderHint();
+  }
+
+  function setRally(n) {
+    ui.draft.rallyLen = n;
+    const v = document.getElementById("rl-val"); if (v) v.textContent = n;
+    document.querySelectorAll('[data-field="rallyLenQuick"] .chip').forEach(c => {
+      const cv = parseInt(c.dataset.val, 10);
+      c.setAttribute("aria-pressed", (cv === 7 ? n >= 7 : cv === n) ? "true" : "false");
+    });
+  }
+
+  function startEditPoint(pid) {
+    const p = DB.points.find(x => x.id === pid); if (!p) return;
+    ui.editPointId = pid;
+    ui.draft = {
+      server: p.server, serveSpin: p.serveSpin, serveLen: p.serveLen, serveSide: p.serveSide,
+      rallyLen: p.rallyLen, winner: p.winner, endType: p.endType, endStroke: p.endStroke, endSide: p.endSide,
+      zoneX: p.zoneX, zoneY: p.zoneY, videoTime: p.videoTime, note: p.note || ""
+    };
+    ui.videoTime = p.videoTime;
+    renderRegistrar();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function savePoint() {
+    const d = ui.draft;
+    if (!d.winner) { toast("Marque quem ganhou o ponto.", true); return; }
+    const m = currentMatch(); if (!m) return;
+
+    if (ui.editPointId) {
+      const p = DB.points.find(x => x.id === ui.editPointId);
+      if (p) Object.assign(p, {
+        server: d.server, serveSpin: d.serveSpin, serveLen: d.serveLen, serveSide: d.serveSide,
+        rallyLen: d.rallyLen, winner: d.winner, endType: d.endType, endStroke: d.endStroke, endSide: d.endSide,
+        zoneX: d.zoneX, zoneY: d.zoneY, videoTime: d.videoTime, note: d.note
+      });
+      ui.editPointId = null;
+      toast("Ponto atualizado.");
+    } else {
+      const existing = matchPoints(m.id);
+      const nextNo = existing.length ? existing[existing.length - 1].pointNo + 1 : 1;
+      let setNo = currentSetNo(m.id);
+      if (ui._forceNewSet) { setNo = setNo + 1; ui._forceNewSet = false; }
+      DB.points.push({
+        id: uid(), matchId: m.id, setNo, pointNo: nextNo,
+        server: d.server, serveSpin: d.serveSpin, serveLen: d.serveLen, serveSide: d.serveSide,
+        rallyLen: d.rallyLen, winner: d.winner, endType: d.endType, endStroke: d.endStroke, endSide: d.endSide,
+        zoneX: d.zoneX, zoneY: d.zoneY, videoTime: d.videoTime, note: d.note, createdAt: new Date().toISOString()
+      });
+      toast(isWin({ winner: d.winner }) ? "Ponto ganho registrado ✓" : "Ponto registrado.");
+    }
+    persist();
+    // keep server + serve context for speed, reset outcome fields
+    const keepServer = d.server, keepSpin = d.serveSpin, keepLen = d.serveLen, keepSide = d.serveSide;
+    ui.draft = freshDraft();
+    ui.draft.server = keepServer; ui.draft.serveSpin = keepSpin; ui.draft.serveLen = keepLen; ui.draft.serveSide = keepSide;
+    ui.videoTime = null;
+    renderRegistrar();
+  }
+
+  // ---------------- Partidas ----------------
+  function renderPartidas() {
+    const list = document.getElementById("match-list");
+    if (!DB.matches.length) {
+      list.innerHTML = `<div class="empty"><div class="ball"></div><h3>Ainda sem partidas</h3><p>Crie sua primeira partida para começar a analisar.</p><button class="btn primary" id="p-new">+ Nova partida</button></div>`;
+      document.getElementById("p-new").onclick = () => openMatchModal(null);
+      return;
+    }
+    list.innerHTML = DB.matches.slice().reverse().map(m => {
+      const pts = matchPoints(m.id);
+      const won = pts.filter(isWin).length;
+      return `<div class="match-item ${m.id === ui.matchId ? "sel" : ""}" data-mid="${m.id}">
+        <div>
+          <div class="mi-t">vs ${esc(m.opponent || "Adversário")}</div>
+          <div class="mi-s">${esc(m.date || "")}${m.event ? " · " + esc(m.event) : ""} · <span class="tnum">${pts.length}</span> pontos${pts.length ? ` · <b style="color:var(--win)">${won}G</b> / <b style="color:var(--loss)">${pts.length - won}P</b>` : ""}</div>
+        </div>
+        <div style="display:flex;gap:6px">
+          <button class="btn sm primary" data-act="select">Registrar</button>
+          <button class="btn sm" data-act="analyze">Análise</button>
+          <button class="btn sm ghost" data-act="edit">✎</button>
+          <button class="btn sm ghost" data-act="del" style="color:var(--loss)">🗑</button>
+        </div>
+      </div>`;
+    }).join("");
+    list.querySelectorAll(".match-item").forEach(item => {
+      const mid = item.dataset.mid;
+      item.querySelectorAll("[data-act]").forEach(btn => btn.onclick = e => {
+        e.stopPropagation();
+        const act = btn.dataset.act;
+        if (act === "select") { ui.matchId = mid; ui.draft = freshDraft(); switchView("registrar"); }
+        else if (act === "analyze") { ui.matchId = mid; ui.filterMatch = mid; switchView("analise"); }
+        else if (act === "edit") openMatchModal(mid);
+        else if (act === "del") {
+          if (confirm("Excluir esta partida e todos os seus pontos?")) {
+            DB.matches = DB.matches.filter(x => x.id !== mid);
+            DB.points = DB.points.filter(p => p.matchId !== mid);
+            if (ui.matchId === mid) ui.matchId = DB.matches.length ? DB.matches[DB.matches.length - 1].id : null;
+            persist(); renderPartidas();
+          }
+        }
+      });
+      item.onclick = () => { ui.matchId = mid; renderPartidas(); };
+    });
+  }
+
+  function openMatchModal(mid) {
+    ui.editMatchId = mid;
+    const modal = document.getElementById("match-modal");
+    const m = mid ? DB.matches.find(x => x.id === mid) : null;
+    document.getElementById("mm-title").textContent = mid ? "Editar partida" : "Nova partida";
+    document.getElementById("mm-opp").value = m ? (m.opponent || "") : "";
+    document.getElementById("mm-date").value = m ? (m.date || todayStr()) : todayStr();
+    document.getElementById("mm-hand").value = m ? (m.hand || "destro") : "destro";
+    document.getElementById("mm-event").value = m ? (m.event || "") : "";
+    document.getElementById("mm-note").value = m ? (m.note || "") : "";
+    modal.showModal();
+  }
+
+  // ---------------- Análise ----------------
+  function filteredPoints() {
+    if (ui.filterMatch === "all") return DB.points.slice();
+    return DB.points.filter(p => p.matchId === ui.filterMatch);
+  }
+
+  function pct(n, d) { return d ? Math.round((n / d) * 100) : 0; }
+
+  function renderAnalise() {
+    const body = document.getElementById("ana-body");
+    const opts = `<option value="all">Todas as partidas</option>` +
+      DB.matches.slice().reverse().map(m => `<option value="${m.id}" ${ui.filterMatch === m.id ? "selected" : ""}>vs ${esc(m.opponent || "Adversário")}${m.date ? " · " + esc(m.date) : ""}</option>`).join("");
+    const P = filteredPoints();
+
+    if (!P.length) {
+      body.innerHTML = `<div class="filters"><label>Partida</label><select id="f-match">${opts}</select></div>
+        <div class="empty"><div class="ball"></div><h3>Sem dados para analisar ainda</h3><p>Registre alguns pontos na aba <b>Registrar</b> e as estatísticas aparecem aqui.</p></div>`;
+      document.getElementById("f-match").onchange = e => { ui.filterMatch = e.target.value; renderAnalise(); };
+      return;
+    }
+
+    const total = P.length;
+    const won = P.filter(isWin).length;
+    const serving = P.filter(p => p.server === "me");
+    const receiving = P.filter(p => p.server === "opp");
+
+    // 3-phase
+    const phaseData = Object.keys(PHASES).map(key => {
+      const ph = P.filter(p => phaseOf(p) === key);
+      const w = ph.filter(isWin).length;
+      return { key, label: PHASES[key].label, color: PHASES[key].color, n: ph.length, won: w, use: pct(ph.length, total), sr: pct(w, ph.length) };
+    });
+
+    // winners / errors (mine)
+    const myWinners = P.filter(p => p.endType === "Winner" && p.winner === "me").length;
+    const myForced = P.filter(p => p.endType === "Erro forçado" && p.winner === "opp").length;
+    const myUnforced = P.filter(p => p.endType === "Erro não forçado" && p.winner === "opp").length;
+    const oppErrGifts = P.filter(p => p.endType !== "Winner" && p.winner === "me").length;
+
+    // stroke effectiveness (my deciding strokes)
+    const myDeciders = P.filter(deciderIsMe).filter(p => p.endStroke);
+    const strokeMap = {};
+    myDeciders.forEach(p => {
+      const key = p.endStroke + (p.endSide ? " " + p.endSide : "");
+      strokeMap[key] = strokeMap[key] || { key, win: 0, err: 0 };
+      if (p.endType === "Winner") strokeMap[key].win++; else strokeMap[key].err++;
+    });
+    const strokes = Object.values(strokeMap).sort((a, b) => (b.win + b.err) - (a.win + a.err));
+
+    // serve effectiveness (my serves)
+    const serveMap = {};
+    serving.forEach(p => {
+      const key = (p.serveSpin || "?") + (p.serveSide ? " · " + p.serveSide : "");
+      serveMap[key] = serveMap[key] || { key, n: 0, w: 0 };
+      serveMap[key].n++; if (isWin(p)) serveMap[key].w++;
+    });
+    const serves = Object.values(serveMap).filter(s => s.key !== "?").sort((a, b) => b.n - a.n);
+
+    // receive vs opp serve
+    const recvMap = {};
+    receiving.forEach(p => {
+      const key = (p.serveSpin || "?");
+      recvMap[key] = recvMap[key] || { key, n: 0, w: 0 };
+      recvMap[key].n++; if (isWin(p)) recvMap[key].w++;
+    });
+    const recvs = Object.values(recvMap).filter(s => s.key !== "?").sort((a, b) => b.n - a.n);
+
+    // rally buckets
+    const buckets = [{ k: "1–2", lo: 1, hi: 2 }, { k: "3–4", lo: 3, hi: 4 }, { k: "5–6", lo: 5, hi: 6 }, { k: "7+", lo: 7, hi: 999 }];
+    const rallyData = buckets.map(b => {
+      const arr = P.filter(p => p.rallyLen >= b.lo && p.rallyLen <= b.hi);
+      return { k: b.k, n: arr.length, w: arr.filter(isWin).length };
+    });
+
+    // zones (my deciding shots)
+    const zoneWin = {}, zoneErr = {};
+    myDeciders.forEach(p => {
+      if (!p.zoneX || !p.zoneY) return;
+      const key = p.zoneX + "|" + p.zoneY;
+      if (p.endType === "Winner") zoneWin[key] = (zoneWin[key] || 0) + 1;
+      else zoneErr[key] = (zoneErr[key] || 0) + 1;
+    });
+
+    // third ball
+    const thirdBall = serving.filter(p => p.rallyLen === 3);
+    const thirdWon = thirdBall.filter(isWin).length;
+
+    body.innerHTML = `
+      <div class="filters"><label>Partida</label><select id="f-match">${opts}</select>
+        <span class="muted-note" style="margin-left:auto">${total} pontos${ui.filterMatch === "all" ? " · " + DB.matches.length + " partidas" : ""}</span></div>
+
+      <div class="tiles">
+        <div class="tile"><div class="lab">Aproveitamento</div><div class="big tnum" style="color:${won >= total - won ? "var(--win)" : "var(--loss)"}">${pct(won, total)}%</div><div class="sub"><b class="w">${won}</b> ganhos · <b class="l">${total - won}</b> perdidos</div></div>
+        <div class="tile"><div class="lab">Sacando</div><div class="big tnum">${pct(serving.filter(isWin).length, serving.length)}%</div><div class="sub">${serving.length} pontos no seu saque</div></div>
+        <div class="tile"><div class="lab">Recebendo</div><div class="big tnum">${pct(receiving.filter(isWin).length, receiving.length)}%</div><div class="sub">${receiving.length} pontos recebendo</div></div>
+        <div class="tile"><div class="lab">3ª bola (ataque após saque)</div><div class="big tnum">${pct(thirdWon, thirdBall.length)}%</div><div class="sub">${thirdBall.length} rallies de 3 tacadas</div></div>
+        <div class="tile"><div class="lab">Winners × Erros seus</div><div class="big tnum">${myWinners}<span style="color:var(--muted);font-size:20px"> / </span>${myForced + myUnforced}</div><div class="sub">${myUnforced} não forçados · ${myForced} forçados</div></div>
+      </div>
+
+      <div class="card mb16">
+        <h2>Método das 3 fases <span class="hint">— uso (quanto a fase decide) e aproveitamento (quanto você ganha nela)</span></h2>
+        <table class="ph">
+          <thead><tr><th>Fase</th><th class="num">Pontos</th><th class="num">Uso</th><th class="barcell">Aproveitamento</th><th class="num">%</th></tr></thead>
+          <tbody>
+            ${phaseData.map(ph => `<tr>
+              <td><span style="display:inline-block;width:9px;height:9px;border-radius:3px;background:${ph.color};margin-right:7px;vertical-align:middle"></span>${ph.label}</td>
+              <td class="num">${ph.n}</td>
+              <td class="num">${ph.use}%</td>
+              <td class="barcell"><div class="minibar"><span style="width:${ph.sr}%;background:${ph.sr >= 50 ? "var(--win)" : "var(--loss)"}"></span></div></td>
+              <td class="num" style="font-weight:600;color:${ph.sr >= 50 ? "var(--win)" : "var(--loss)"}">${ph.sr}%</td>
+            </tr>`).join("")}
+          </tbody>
+        </table>
+        <p class="muted-note" style="margin:12px 0 0">Fases 1–4 pelo sacador (saque × recepção); rally de 5+ tacadas conta como estabilização. Aproveitamento &lt;50% = fase a melhorar.</p>
+      </div>
+
+      <div class="grid2 mb16">
+        <div class="card">
+          <h2>Golpes que decidem — forças e fraquezas</h2>
+          ${strokes.length ? `<div class="hbars">${strokes.slice(0, 8).map(s => strokeBar(s)).join("")}</div>
+            <div class="legend"><span><i style="background:var(--win)"></i>Winners seus</span><span><i style="background:var(--loss)"></i>Seus erros</span></div>` :
+            `<p class="muted-note">Registre o golpe que decidiu cada ponto para ver isto.</p>`}
+        </div>
+        <div class="card">
+          <h2>Comprimento do rally</h2>
+          <div class="hbars">${rallyData.map(r => `
+            <div class="hbar">
+              <span class="lbl">${r.k} tacadas</span>
+              <div class="track"><span style="width:${pct(r.w, r.n)}%;background:${pct(r.w, r.n) >= 50 ? "var(--win)" : "var(--s-blue)"}"></span></div>
+              <span class="val">${r.n ? pct(r.w, r.n) + "%" : "—"} <span style="color:var(--muted)">(${r.n})</span></span>
+            </div>`).join("")}</div>
+          <p class="muted-note" style="margin:12px 0 0">Aproveitamento por duração — revela se você vence nas trocas curtas ou longas.</p>
+        </div>
+      </div>
+
+      <div class="grid2 mb16">
+        <div class="card">
+          <h2>Seus saques — aproveitamento</h2>
+          ${serves.length ? `<div class="hbars">${serves.slice(0, 7).map(s => `
+            <div class="hbar"><span class="lbl">${esc(s.key)}</span>
+              <div class="track"><span style="width:${pct(s.w, s.n)}%;background:${pct(s.w, s.n) >= 50 ? "var(--win)" : "var(--s-blue)"}"></span></div>
+              <span class="val">${pct(s.w, s.n)}% <span style="color:var(--muted)">(${s.n})</span></span></div>`).join("")}</div>` :
+            `<p class="muted-note">Registre o efeito/direção dos seus saques para ver quais rendem mais.</p>`}
+        </div>
+        <div class="card">
+          <h2>Recepção — por saque do adversário</h2>
+          ${recvs.length ? `<div class="hbars">${recvs.slice(0, 7).map(s => `
+            <div class="hbar"><span class="lbl">${esc(s.key)}</span>
+              <div class="track"><span style="width:${pct(s.w, s.n)}%;background:${pct(s.w, s.n) >= 50 ? "var(--win)" : "var(--loss)"}"></span></div>
+              <span class="val">${pct(s.w, s.n)}% <span style="color:var(--muted)">(${s.n})</span></span></div>`).join("")}</div>` :
+            `<p class="muted-note">Registre o efeito do saque adversário para ver onde você sofre na recepção.</p>`}
+        </div>
+      </div>
+
+      <div class="grid2 mb16">
+        <div class="card">
+          <h2>Onde caem suas bolas decisivas</h2>
+          <div style="display:flex;gap:22px;flex-wrap:wrap">
+            ${zoneGrid("Winners", zoneWin, "var(--win)")}
+            ${zoneGrid("Erros", zoneErr, "var(--loss)")}
+          </div>
+        </div>
+        <div class="card">
+          <h2>Táticas e oportunidades</h2>
+          <div id="insights">${renderInsights({ phaseData, serves, recvs, strokes, serving, receiving, thirdBall, thirdWon, myUnforced, total, won, rallyData })}</div>
+        </div>
+      </div>`;
+
+    document.getElementById("f-match").onchange = e => { ui.filterMatch = e.target.value; renderAnalise(); };
+  }
+
+  function strokeBar(s) {
+    const tot = s.win + s.err;
+    const wpct = tot ? (s.win / tot) * 100 : 0;
+    return `<div class="hbar">
+      <span class="lbl">${esc(s.key)}</span>
+      <div class="track">
+        <span style="width:${wpct}%;background:var(--win)"></span>
+        <span style="left:${wpct}%;width:${100 - wpct}%;background:var(--loss)"></span>
+      </div>
+      <span class="val">${s.win}<span style="color:var(--muted)">/</span>${s.err}</span>
+    </div>`;
+  }
+
+  function zoneGrid(title, map, color) {
+    let max = 0; Object.values(map).forEach(v => max = Math.max(max, v));
+    const cells = ZONE_ROWS.map(row => SIDE3.map(col => {
+      const v = map[col + "|" + row] || 0;
+      const intensity = max ? v / max : 0;
+      const bg = v ? `color-mix(in srgb, ${color} ${18 + intensity * 62}%, var(--surface))` : "var(--surface-2)";
+      const tc = intensity > 0.55 ? "#fff" : "var(--ink-2)";
+      return `<div class="hc" style="background:${bg};color:${tc}">${v || ""}<small>${col} ${row}</small></div>`;
+    }).join("")).join("");
+    return `<div><div class="zone-net" style="margin-bottom:6px">${title}</div><div class="heat">${cells}</div></div>`;
+  }
+
+  function renderInsights(x) {
+    const good = [], warn = [];
+    const MIN = 4;
+    // Best serve
+    const goodServes = x.serves.filter(s => s.n >= MIN).sort((a, b) => (b.w / b.n) - (a.w / a.n));
+    if (goodServes.length && (goodServes[0].w / goodServes[0].n) >= 0.55)
+      good.push({ t: `Saque forte: <b>${esc(goodServes[0].key)}</b>`, s: `${pct(goodServes[0].w, goodServes[0].n)}% de aproveitamento em ${goodServes[0].n} pontos — use como padrão para abrir o ponto.` });
+    // Best stroke (winners)
+    const goodStroke = x.strokes.filter(s => s.win >= 3).sort((a, b) => b.win - a.win)[0];
+    if (goodStroke) good.push({ t: `Arma principal: <b>${esc(goodStroke.key)}</b>`, s: `${goodStroke.win} winners com esse golpe — busque situações que levem a ele.` });
+    // Third ball
+    if (x.thirdBall.length >= MIN && (x.thirdWon / x.thirdBall.length) >= 0.55)
+      good.push({ t: `Boa 3ª bola`, s: `${pct(x.thirdWon, x.thirdBall.length)}% de aproveitamento atacando após o saque (${x.thirdBall.length} pontos).` });
+    // Serving vs receiving strength
+    const svPct = pct(x.serving.filter(isWin).length, x.serving.length), rcPct = pct(x.receiving.filter(isWin).length, x.receiving.length);
+    if (x.serving.length >= MIN && svPct >= 55) good.push({ t: `Sólido sacando`, s: `${svPct}% quando você saca — proteja seus games de saque.` });
+
+    // --- opportunities ---
+    // Worst phase
+    const worstPhase = x.phaseData.filter(p => p.n >= MIN).sort((a, b) => a.sr - b.sr)[0];
+    if (worstPhase && worstPhase.sr < 50) warn.push({ t: `Fase a melhorar: <b>${worstPhase.label}</b>`, s: `só ${worstPhase.sr}% de aproveitamento (${worstPhase.n} pontos). É onde você mais perde pontos.` });
+    // Unforced errors
+    if (x.myUnforced >= 4 && x.myUnforced / x.total >= 0.18)
+      warn.push({ t: `Muitos erros não forçados`, s: `${x.myUnforced} pontos perdidos por erro não forçado (${pct(x.myUnforced, x.total)}% do total) — foco em consistência.` });
+    // Worst receive
+    const badRecv = x.recvs.filter(s => s.n >= MIN).sort((a, b) => (a.w / a.n) - (b.w / b.n))[0];
+    if (badRecv && (badRecv.w / badRecv.n) < 0.45)
+      warn.push({ t: `Recepção difícil: <b>saque ${esc(badRecv.key)}</b>`, s: `apenas ${pct(badRecv.w, badRecv.n)}% quando recebe esse saque (${badRecv.n}x) — treine a devolução.` });
+    // Worst stroke (errors)
+    const badStroke = x.strokes.filter(s => s.err >= 3 && s.err > s.win).sort((a, b) => b.err - a.err)[0];
+    if (badStroke) warn.push({ t: `Golpe inconsistente: <b>${esc(badStroke.key)}</b>`, s: `${badStroke.err} erros contra ${badStroke.win} winners com esse golpe.` });
+    if (x.receiving.length >= MIN && rcPct < 45) warn.push({ t: `Recepção como um todo`, s: `${rcPct}% recebendo — cada quebra de saque adversário custa caro.` });
+
+    let html = "";
+    if (!good.length && !warn.length) html += `<p class="muted-note">Registre mais pontos (idealmente um jogo inteiro) para gerar recomendações confiáveis.</p>`;
+    good.slice(0, 4).forEach(g => html += `<div class="insight good"><div class="ic">✓</div><div class="tx">${g.t}<small>${g.s}</small></div></div>`);
+    warn.slice(0, 4).forEach(w => html += `<div class="insight warn"><div class="ic">↗</div><div class="tx">${w.t}<small>${w.s}</small></div></div>`);
+    return html;
+  }
+
+  // ---------------- Drive sync ----------------
+  function mcpAvailable() { return typeof window.claude !== "undefined" && window.claude && window.claude.mcp; }
+
+  async function driveSave() {
+    if (!mcpAvailable()) { toast("Sincronização com o Drive indisponível nesta visualização.", true); return; }
+    const btn = document.getElementById("btn-drive-save"); btn.disabled = true; btn.textContent = "Salvando…";
+    try {
+      const payload = JSON.stringify(Object.assign({}, DB, { updatedAt: new Date().toISOString() }));
+      const res = await window.claude.mcp.callTool(DRIVE_SERVER, "create_file", {
+        title: DRIVE_FILE, textContent: payload, contentMimeType: "application/json", disableConversionToGoogleType: true
+      });
+      const f = res && res.payload;
+      toast("Backup salvo no Google Drive ✓");
+      void f;
+    } catch (err) {
+      toast(driveErrMsg(err, "salvar"), true);
+    } finally { btn.disabled = false; btn.textContent = "☁︎ Salvar no Drive"; }
+  }
+
+  async function driveLoad() {
+    if (!mcpAvailable()) { toast("Sincronização com o Drive indisponível nesta visualização.", true); return; }
+    const btn = document.getElementById("btn-drive-load"); btn.disabled = true; btn.textContent = "Carregando…";
+    try {
+      const sres = await window.claude.mcp.callTool(DRIVE_SERVER, "search_files", { query: `title = '${DRIVE_FILE}'` });
+      const files = ((sres && sres.payload && sres.payload.files) || []).slice();
+      if (!files.length) { toast("Nenhum backup encontrado no Drive ainda. Salve primeiro.", true); return; }
+      files.sort((a, b) => new Date(b.createdTime || 0) - new Date(a.createdTime || 0));
+      const fileId = files[0].id;
+      const dres = await window.claude.mcp.callTool(DRIVE_SERVER, "download_file_content", { fileId });
+      const b64 = dres && dres.payload && dres.payload.content;
+      if (!b64) { toast("Não consegui ler o conteúdo do backup.", true); return; }
+      const text = b64ToStr(b64);
+      const data = JSON.parse(text);
+      if (!data || !data.matches || !data.points) throw new Error("Formato inválido");
+      if (!confirm(`Carregar backup do Drive?\n${data.matches.length} partidas · ${data.points.length} pontos.\nIsto substitui os dados atuais deste navegador.`)) return;
+      DB = data; persist();
+      ui.matchId = DB.matches.length ? DB.matches[DB.matches.length - 1].id : null;
+      ui.filterMatch = "all";
+      render();
+      toast("Dados carregados do Drive ✓");
+    } catch (err) {
+      toast(driveErrMsg(err, "carregar"), true);
+    } finally { btn.disabled = false; btn.textContent = "⤓ Carregar do Drive"; }
+  }
+
+  async function driveExportSheet() {
+    if (!mcpAvailable()) { toast("Google Drive indisponível nesta visualização.", true); return; }
+    try {
+      const csv = buildCSV();
+      const title = "Analise Tenis de Mesa " + todayStr();
+      await window.claude.mcp.callTool(DRIVE_SERVER, "create_file", {
+        title, textContent: csv, contentMimeType: "text/csv"
+      });
+      toast("Planilha criada no Google Drive (Google Sheets) ✓");
+    } catch (err) { toast(driveErrMsg(err, "exportar"), true); }
+  }
+
+  function driveErrMsg(err, action) {
+    const code = err && err.code;
+    switch (code) {
+      case "needs_reauth": return "Reconecte o Google Drive em claude.ai → Configurações → Conectores.";
+      case "server_not_connected": return "Adicione o Google Drive em claude.ai → Configurações → Conectores.";
+      case "selection_required": return "Escolha qual conta do Google Drive usar no aviso do claude.ai.";
+      case "server_unavailable": return "Google Drive temporariamente indisponível — tente de novo em instantes.";
+      case "tool_error": return "O Google Drive recusou a operação. Verifique permissões do arquivo.";
+      case "not_granted": case "capability_disabled": case "capability_removed": return "Este visualizador não permite acessar o Drive.";
+      default: return "Não foi possível " + action + " no Drive. Tente novamente.";
+    }
+  }
+
+  // ---------------- Export / import ----------------
+  function buildCSV() {
+    const head = ["partida", "adversario", "data", "set", "ponto", "sacador", "saque_efeito", "saque_comprimento", "saque_direcao", "rally", "fase", "resultado", "finalizacao", "golpe", "lado", "zona_x", "zona_y", "tempo_video_s", "nota"];
+    const rows = [head.join(",")];
+    DB.points.slice().sort((a, b) => a.matchId < b.matchId ? -1 : a.pointNo - b.pointNo).forEach(p => {
+      const m = DB.matches.find(x => x.id === p.matchId) || {};
+      const r = [
+        m.id || "", m.opponent || "", m.date || "", p.setNo, p.pointNo, p.server === "me" ? "Eu" : "Adversario",
+        p.serveSpin || "", p.serveLen || "", p.serveSide || "", p.rallyLen, PHASES[phaseOf(p)].label,
+        isWin(p) ? "Ganho" : "Perda", p.endType || "", p.endStroke || "", p.endSide || "",
+        p.zoneX || "", p.zoneY || "", p.videoTime == null ? "" : p.videoTime, p.note || ""
+      ].map(csvCell);
+      rows.push(r.join(","));
+    });
+    return rows.join("\n");
+  }
+  function csvCell(v) { v = String(v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; }
+
+  async function saveDownload(filename, data, mime) {
+    if (window.claude && window.claude.downloads) {
+      try { await window.claude.downloads.save({ filename, data }); toast("Arquivo salvo ✓"); return; }
+      catch (err) {
+        if (err && err.code === "declined") return;
+        // fall through to blob
+      }
+    }
+    try {
+      const blob = new Blob([data], { type: mime || "application/octet-stream" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a"); a.href = url; a.download = filename; document.body.appendChild(a); a.click();
+      a.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (e) { toast("Não foi possível baixar o arquivo aqui.", true); }
+  }
+
+  function exportJSON() { saveDownload("ttm-analyzer-backup-" + todayStr() + ".json", JSON.stringify(DB, null, 2), "application/json"); }
+  function exportTXT() { saveDownload("pontos-tenis-de-mesa-" + todayStr() + ".txt", buildCSV(), "text/plain"); }
+
+  function importJSON(file) {
+    const rd = new FileReader();
+    rd.onload = () => {
+      try {
+        const data = JSON.parse(rd.result);
+        if (!data || !data.matches || !data.points) throw new Error();
+        if (!confirm(`Importar ${data.matches.length} partidas e ${data.points.length} pontos? Isto substitui os dados atuais.`)) return;
+        DB = data; persist();
+        ui.matchId = DB.matches.length ? DB.matches[DB.matches.length - 1].id : null;
+        render(); toast("Backup importado ✓");
+      } catch (e) { toast("Arquivo inválido.", true); }
+    };
+    rd.readAsText(file);
+  }
+
+  // ---------------- Utilities ----------------
+  function esc(s) { return String(s == null ? "" : s).replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c])); }
+  function escapeAttr(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+  function fmtTime(sec) { sec = Math.max(0, Math.floor(sec)); const m = Math.floor(sec / 60), s = sec % 60; return m + ":" + String(s).padStart(2, "0"); }
+  function todayStr() { const d = new Date(); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
+  function b64ToStr(b64) { const bin = atob(b64); const bytes = Uint8Array.from(bin, c => c.charCodeAt(0)); return new TextDecoder().decode(bytes); }
+  let toastTimer;
+  function toast(msg, isErr) {
+    const t = document.getElementById("toast");
+    t.textContent = msg; t.className = "show" + (isErr ? " err" : "");
+    clearTimeout(toastTimer); toastTimer = setTimeout(() => t.className = "", 2600);
+  }
+  function switchView(v) { ui.view = v; render(); window.scrollTo({ top: 0, behavior: "smooth" }); }
+
+  // ---------------- Wiring ----------------
+  document.querySelectorAll(".nav button").forEach(b => b.onclick = () => switchView(b.dataset.view));
+  document.getElementById("btn-new-match").onclick = () => openMatchModal(null);
+  document.getElementById("btn-drive-save").onclick = driveSave;
+  document.getElementById("btn-drive-load").onclick = driveLoad;
+
+  // match modal save
+  document.getElementById("match-modal").addEventListener("close", function () {
+    if (this.returnValue !== "save") { ui.editMatchId = null; return; }
+    const opp = document.getElementById("mm-opp").value.trim();
+    const data = {
+      opponent: opp || "Adversário", date: document.getElementById("mm-date").value,
+      hand: document.getElementById("mm-hand").value, event: document.getElementById("mm-event").value.trim(),
+      note: document.getElementById("mm-note").value.trim()
+    };
+    if (ui.editMatchId) {
+      const m = DB.matches.find(x => x.id === ui.editMatchId); if (m) Object.assign(m, data);
+    } else {
+      const id = uid(); DB.matches.push(Object.assign({ id, createdAt: new Date().toISOString() }, data));
+      ui.matchId = id; ui.view = "registrar";
+    }
+    ui.editMatchId = null; persist(); render();
+  });
+
+  // menu modal
+  const menuModal = document.getElementById("menu-modal");
+  document.getElementById("btn-menu").onclick = () => menuModal.showModal();
+  document.getElementById("mn-close").onclick = () => menuModal.close();
+  document.getElementById("mn-export-json").onclick = () => { exportJSON(); };
+  document.getElementById("mn-txt").onclick = () => { exportTXT(); };
+  document.getElementById("mn-sheet").onclick = () => { driveExportSheet(); };
+  document.getElementById("mn-import-json").onclick = () => document.getElementById("file-import").click();
+  document.getElementById("file-import").onchange = e => { if (e.target.files[0]) { importJSON(e.target.files[0]); menuModal.close(); } };
+  document.getElementById("mn-theme").onclick = () => {
+    const cur = document.documentElement.getAttribute("data-theme");
+    const isDark = cur ? cur === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+    document.documentElement.setAttribute("data-theme", isDark ? "light" : "dark");
+  };
+  document.getElementById("mn-reset").onclick = () => {
+    if (confirm("Apagar TODOS os dados deste navegador? (Faça um backup antes.)")) {
+      DB = { schema: "ttm-analyzer", version: 1, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), matches: [], points: [] };
+      ui.matchId = null; persist(); menuModal.close(); render();
+    }
+  };
+
+  // hide Drive buttons if unavailable
+  if (!mcpAvailable()) {
+    document.getElementById("btn-drive-save").style.display = "none";
+    document.getElementById("btn-drive-load").style.display = "none";
+  }
+
+  render();
+})();
+</script>
