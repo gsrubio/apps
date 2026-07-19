@@ -667,8 +667,8 @@
                   <button id="rl-plus" aria-label="Mais um golpe">+</button>
                 </div>
                 <div class="rally-quick" data-field="rallyLenQuick">
-                  ${[1, 2, 3, 4, 5].map(n => `<button class="chip" data-val="${n}" aria-pressed="${d.rallyLen === n ? "true" : "false"}">${n}</button>`).join("")}
-                  <button class="chip" data-val="7" aria-pressed="${d.rallyLen >= 7 ? "true" : "false"}">7+</button>
+                  ${[1, 2, 3, 4].map(n => `<button class="chip" data-val="${n}" aria-pressed="${d.rallyLen === n ? "true" : "false"}">${n}</button>`).join("")}
+                  <button class="chip" data-val="5" aria-pressed="${d.rallyLen >= 5 ? "true" : "false"}">5+</button>
                 </div>
               </div>
             </div>
