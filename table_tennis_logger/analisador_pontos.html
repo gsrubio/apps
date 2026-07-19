@@ -166,40 +166,41 @@
   .time-badge { font-family: var(--mono); font-size: 13px; background: var(--surface-2); border: 1px solid var(--line); padding: 5px 10px; border-radius: 8px; color: var(--ink-2); }
   .time-badge.armed { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
 
-  .scorebug { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: var(--brand); color: #fff; border-radius: 11px; margin-bottom: 14px; }
-  .scorebug .who { font-size: 12px; opacity: .82; text-transform: uppercase; letter-spacing: .05em; }
-  .scorebug .sc { font-family: var(--mono); font-size: 26px; font-weight: 600; line-height: 1; }
-  .scorebug .mid { opacity: .5; font-size: 20px; }
-  .scorebug .setn { margin-left: auto; font-size: 12px; background: rgba(255,255,255,.16); padding: 4px 9px; border-radius: 7px; }
+  .scorebug { display: flex; align-items: center; gap: 8px; padding: 6px 12px; background: var(--brand); color: #fff; border-radius: 9px; margin-bottom: 9px; }
+  .scorebug .who { font-size: 10px; opacity: .82; text-transform: uppercase; letter-spacing: .05em; }
+  .scorebug .sc { font-family: var(--mono); font-size: 17px; font-weight: 600; line-height: 1; }
+  .scorebug .mid { opacity: .5; font-size: 14px; }
+  .scorebug .setn { margin-left: auto; font-size: 10px; background: rgba(255,255,255,.16); padding: 2px 7px; border-radius: 6px; }
 
-  .field { margin-bottom: 11px; }
-  .field > label { display: block; font-size: 11.5px; font-weight: 650; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin-bottom: 5px; }
-  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .field { margin-bottom: 8px; }
+  .field > label { display: block; font-size: 10px; font-weight: 650; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin-bottom: 3px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 4px; }
   .chip {
-    font-family: inherit; font-size: 12.5px; font-weight: 500;
+    font-family: inherit; font-size: 11px; font-weight: 500;
     border: 1px solid var(--line-2); background: var(--surface); color: var(--ink-2);
-    padding: 6px 10px; border-radius: 8px; cursor: pointer; transition: .1s; user-select: none;
+    padding: 4px 8px; border-radius: 6px; cursor: pointer; transition: .1s; user-select: none;
   }
   .chip:hover { border-color: var(--brand); color: var(--ink); }
   .chip[aria-pressed="true"] { background: var(--brand); border-color: var(--brand); color: #fff; }
   .chip.win[aria-pressed="true"] { background: var(--win); border-color: var(--win); }
   .chip.loss[aria-pressed="true"] { background: var(--loss); border-color: var(--loss); }
+  .chip.agg { border-color: color-mix(in srgb, var(--accent) 55%, var(--line-2)); }
   .chip.big { padding: 12px 18px; font-size: 15px; font-weight: 600; flex: 1; text-align: center; }
 
-  .stepper { display: inline-flex; align-items: center; gap: 0; border: 1px solid var(--line-2); border-radius: 9px; overflow: hidden; }
-  .stepper button { font-family: var(--mono); border: 0; background: var(--surface); color: var(--ink); width: 34px; height: 34px; font-size: 17px; cursor: pointer; }
+  .stepper { display: inline-flex; align-items: center; gap: 0; border: 1px solid var(--line-2); border-radius: 8px; overflow: hidden; }
+  .stepper button { font-family: var(--mono); border: 0; background: var(--surface); color: var(--ink); width: 24px; height: 24px; font-size: 13px; cursor: pointer; }
   .stepper button:hover { background: var(--surface-2); color: var(--brand); }
-  .stepper .val { min-width: 38px; text-align: center; font-family: var(--mono); font-size: 15px; font-weight: 600; }
-  .rally-quick { display: inline-flex; gap: 6px; margin-left: 8px; }
+  .stepper .val { min-width: 26px; text-align: center; font-family: var(--mono); font-size: 12px; font-weight: 600; }
+  .rally-quick { display: inline-flex; gap: 3px; margin-left: 5px; }
 
-  .zone-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; max-width: 280px; }
+  .zone-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px; max-width: 280px; }
   .zone-grid .zc {
-    aspect-ratio: 3/2; border: 1px solid var(--line-2); background: var(--surface-2); border-radius: 7px;
-    cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 11px; color: var(--muted); transition: .1s;
+    aspect-ratio: 3/2; border: 1px solid var(--line-2); background: var(--surface-2); border-radius: 6px;
+    cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 10px; color: var(--muted); transition: .1s;
   }
   .zone-grid .zc:hover { border-color: var(--brand); }
   .zone-grid .zc[aria-pressed="true"] { background: var(--brand); color: #fff; border-color: var(--brand); }
-  .zone-net { font-size: 10.5px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); text-align: center; margin: 6px 0 3px; }
+  .zone-net { font-size: 9.5px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); text-align: center; margin: 4px 0 2px; }
 
   input.txt, textarea.txt {
     font-family: inherit; font-size: 14px; width: 100%; padding: 9px 11px;
@@ -209,30 +210,35 @@
   .row { display: flex; gap: 10px; flex-wrap: wrap; }
   .row > * { flex: 1; min-width: 0; }
 
-  .save-row { display: flex; gap: 10px; margin-top: 14px; }
-  .save-row .btn.primary { flex: 1; justify-content: center; padding: 12px; font-size: 15px; border-radius: 11px; }
+  .save-row { display: flex; gap: 10px; margin-top: 8px; }
+  .save-row .btn.primary { flex: 1; justify-content: center; padding: 8px; font-size: 13px; border-radius: 9px; }
 
   /* compact registrar form */
-  .card.compact { padding: 15px 16px; }
-  .fgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 16px; }
+  .card.compact { padding: 12px 14px; }
+  .fgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px 12px; }
   .fgrid .field { margin-bottom: 0; }
   .span2 { grid-column: 1 / -1; }
   @media (max-width: 560px) { .fgrid { grid-template-columns: 1fr; } }
-  .seg { gap: 6px; }
-  .seg-btn { flex: 1; text-align: center; padding: 9px 6px; font-weight: 600; font-size: 13px; }
-  .subrow { display: grid; grid-template-columns: 72px 1fr; align-items: start; gap: 8px; margin-bottom: 6px; }
+  .seg { gap: 5px; }
+  .seg-btn { flex: 1; text-align: center; padding: 6px 6px; font-weight: 600; font-size: 11.5px; }
+  .subrow { display: grid; grid-template-columns: 46px 1fr; align-items: start; gap: 6px; margin-bottom: 3px; }
   .subrow:last-child { margin-bottom: 0; }
-  .sublabel { font-size: 11px; color: var(--muted); font-weight: 600; text-align: right; padding-top: 7px; line-height: 1.15; }
-  .sublabel small { display: block; font-weight: 400; font-size: 9.5px; opacity: .85; }
-  .rally-line { display: flex; align-items: center; flex-wrap: wrap; gap: 5px; }
-  .zone-flex { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+  .sublabel { font-size: 9.5px; color: var(--muted); font-weight: 600; text-align: right; padding-top: 4px; line-height: 1.15; }
+  .sublabel small { display: block; font-weight: 400; font-size: 8.5px; opacity: .85; }
+  .rally-line { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; }
+  .zone-flex { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
   .zone-block { flex: 0 0 auto; }
-  .zone-flex .zone-grid { max-width: 216px; }
-  .note-inline { flex: 1; min-width: 150px; align-self: center; }
-  .decider-pill { font-size: 10.5px; font-weight: 700; text-transform: none; letter-spacing: 0; padding: 2px 8px; border-radius: 20px; vertical-align: middle; }
+  .zone-flex .zone-grid { max-width: 128px; }
+  .note-inline { flex: 1; min-width: 130px; align-self: center; }
+  .decider-pill { font-size: 9px; font-weight: 700; text-transform: none; letter-spacing: 0; padding: 1px 7px; border-radius: 20px; vertical-align: middle; }
   .decider-pill.me { background: var(--win-soft); color: var(--win); }
   .decider-pill.opp { background: var(--accent-soft); color: var(--accent); }
   .decider-pill.neutral { background: var(--surface-3); color: var(--muted); }
+
+  /* two (or three) chip subgroups sharing one subrow, separated by a hairline */
+  .combo { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+  .combo .chips { flex: 1 1 auto; gap: 4px; }
+  .combo .chips + .chips { padding-left: 8px; border-left: 1px solid var(--line); flex: 0 0 auto; }
 
   /* ---------- Point list ---------- */
   .plist { margin-top: 18px; }
@@ -465,7 +471,7 @@
   ];
   const OUTCOME_LABEL = { my_winner: "Meu winner", opp_error: "Erro do adv.", my_error: "Meu erro", opp_winner: "Winner do adv." };
   const RECV_NEUTRAL = ["Push", "Bloqueio"];
-  const RECV_AGGRO = ["Flick", "Drive"];
+  const RECV_AGGRO = ["Flick", "Drive", "Topspin"];
   const ZONE_ROWS = ["Longa", "Curta"]; // topo = fundo da mesa, base = rede
 
   const PHASES = {
@@ -490,7 +496,7 @@
   function freshDraft() {
     return {
       server: "me", serveSpin: [], serveLen: null, serveSide: null,
-      rallyLen: 3, outcome: null, myStroke: null, myStrokeSide: null, recvStroke: null,
+      rallyLen: 3, outcome: null, myStroke: null, myStrokeSide: null, recvStroke: null, recvSide: null,
       zoneX: null, zoneY: null, videoTime: null, note: ""
     };
   }
@@ -511,6 +517,7 @@
       }
       if (p.myStrokeSide === undefined) p.myStrokeSide = p.endSide || null;
       if (p.recvStroke === undefined) p.recvStroke = null;
+      if (p.recvSide === undefined) p.recvSide = null;
     });
     return d;
   }
@@ -544,6 +551,15 @@
     if (p.rallyLen === 1) return "ace_contra";
     if (p.rallyLen === 2) return p.outcome === "my_winner" ? "winner" : "erro";
     return "em_jogo";
+  }
+  // For rallyLen<=2 "meu golpe" is inferable from the saque/recepção fields, so the field is hidden
+  // and this fills it in at save time: my serve decided it (rallyLen 1-2, I served), my reception
+  // decided it (rallyLen 2, opponent served), or nothing (rallyLen 1, opponent aced me untouched).
+  function resolveMyStroke(d) {
+    if (d.rallyLen > 2) return { myStroke: d.myStroke, myStrokeSide: d.myStrokeSide };
+    if (d.server === "me") return d.rallyLen === 1 ? { myStroke: "Saque (ace)", myStrokeSide: null } : { myStroke: "Saque", myStrokeSide: null };
+    if (d.rallyLen === 1) return { myStroke: null, myStrokeSide: null };
+    return { myStroke: d.recvStroke || null, myStrokeSide: d.recvSide || null };
   }
   function matchPoints(mid) { return DB.points.filter(p => p.matchId === mid).sort((a, b) => a.pointNo - b.pointNo); }
   function currentMatch() { return DB.matches.find(m => m.id === ui.matchId) || null; }
@@ -664,14 +680,26 @@
                 ${chipGroupMulti("serveSpin", SERVE_SPIN, d.serveSpin)}
               </div>
               <div class="subrow">
-                <span class="sublabel">Comprim.</span>
-                ${chipGroup("serveLen", SERVE_LEN, d.serveLen)}
-              </div>
-              <div class="subrow">
-                <span class="sublabel">Direção</span>
-                ${chipGroup("serveSide", SIDE3, d.serveSide)}
+                <span class="sublabel">Comp./Dir.</span>
+                <div class="combo">
+                  ${chipGroup("serveLen", SERVE_LEN, d.serveLen)}
+                  ${chipGroup("serveSide", SIDE3, d.serveSide)}
+                </div>
               </div>
             </div>
+
+            ${d.server === "opp" && d.rallyLen >= 2 ? `
+            <div class="field span2">
+              <label>Golpe de recepção <span class="muted-note">(sua devolução ao saque)</span></label>
+              <div class="subrow">
+                <span class="sublabel">Recepção</span>
+                <div class="combo">
+                  ${chipGroup("recvStroke", RECV_NEUTRAL, d.recvStroke)}
+                  ${chipGroup("recvStroke", RECV_AGGRO, d.recvStroke)}
+                  ${chipGroup("recvSide", SIDE2, d.recvSide)}
+                </div>
+              </div>
+            </div>` : ``}
 
             <div class="field span2">
               <label>Desfecho do ponto</label>
@@ -681,28 +709,15 @@
               </div>
             </div>
 
+            ${d.rallyLen > 2 ? `
             <div class="field span2">
               <label>Meu golpe <span class="decider-pill neutral" id="dec-who">defina o desfecho</span></label>
               <div class="subrow">
                 <span class="sublabel">Golpe</span>
-                ${chipGroup("myStroke", STROKES, d.myStroke)}
-              </div>
-              <div class="subrow">
-                <span class="sublabel">Lado</span>
-                ${chipGroup("myStrokeSide", SIDE2, d.myStrokeSide)}
-              </div>
-            </div>
-
-            ${d.server === "opp" && d.rallyLen >= 2 ? `
-            <div class="field span2">
-              <label>Golpe de recepção <span class="muted-note">(sua devolução ao saque)</span></label>
-              <div class="subrow">
-                <span class="sublabel">Neutra</span>
-                ${chipGroup("recvStroke", RECV_NEUTRAL, d.recvStroke)}
-              </div>
-              <div class="subrow">
-                <span class="sublabel">Agressiva</span>
-                ${chipGroup("recvStroke", RECV_AGGRO, d.recvStroke)}
+                <div class="combo">
+                  ${chipGroup("myStroke", STROKES, d.myStroke)}
+                  ${chipGroup("myStrokeSide", SIDE2, d.myStrokeSide)}
+                </div>
               </div>
             </div>` : ``}
 
@@ -867,7 +882,8 @@
     ui.editPointId = pid;
     ui.draft = {
       server: p.server, serveSpin: (Array.isArray(p.serveSpin) ? p.serveSpin.slice() : []), serveLen: p.serveLen, serveSide: p.serveSide,
-      rallyLen: p.rallyLen, outcome: p.outcome || null, myStroke: p.myStroke || null, myStrokeSide: p.myStrokeSide || null, recvStroke: p.recvStroke || null,
+      rallyLen: p.rallyLen, outcome: p.outcome || null, myStroke: p.myStroke || null, myStrokeSide: p.myStrokeSide || null,
+      recvStroke: p.recvStroke || null, recvSide: p.recvSide || null,
       zoneX: p.zoneX, zoneY: p.zoneY, videoTime: p.videoTime, note: p.note || ""
     };
     ui.videoTime = p.videoTime;
@@ -879,12 +895,14 @@
     const d = ui.draft;
     if (!d.outcome) { toast("Marque o desfecho do ponto.", true); return; }
     const m = currentMatch(); if (!m) return;
+    const stroke = resolveMyStroke(d);
 
     if (ui.editPointId) {
       const p = DB.points.find(x => x.id === ui.editPointId);
       if (p) Object.assign(p, {
         server: d.server, serveSpin: d.serveSpin.slice(), serveLen: d.serveLen, serveSide: d.serveSide,
-        rallyLen: d.rallyLen, outcome: d.outcome, myStroke: d.myStroke, myStrokeSide: d.myStrokeSide, recvStroke: d.recvStroke,
+        rallyLen: d.rallyLen, outcome: d.outcome, myStroke: stroke.myStroke, myStrokeSide: stroke.myStrokeSide,
+        recvStroke: d.recvStroke, recvSide: d.recvSide,
         zoneX: d.zoneX, zoneY: d.zoneY, videoTime: d.videoTime, note: d.note
       });
       ui.editPointId = null;
@@ -897,7 +915,8 @@
       DB.points.push({
         id: uid(), matchId: m.id, setNo, pointNo: nextNo,
         server: d.server, serveSpin: d.serveSpin.slice(), serveLen: d.serveLen, serveSide: d.serveSide,
-        rallyLen: d.rallyLen, outcome: d.outcome, myStroke: d.myStroke, myStrokeSide: d.myStrokeSide, recvStroke: d.recvStroke,
+        rallyLen: d.rallyLen, outcome: d.outcome, myStroke: stroke.myStroke, myStrokeSide: stroke.myStrokeSide,
+        recvStroke: d.recvStroke, recvSide: d.recvSide,
         zoneX: d.zoneX, zoneY: d.zoneY, videoTime: d.videoTime, note: d.note, createdAt: new Date().toISOString()
       });
       toast(OUTCOME_WIN[d.outcome] ? "Ponto ganho registrado ✓" : "Ponto registrado.");
@@ -1382,14 +1401,14 @@
 
   // ---------------- Export / import ----------------
   function buildCSV() {
-    const head = ["partida", "adversario", "data", "set", "ponto", "sacador", "saque_efeito", "saque_comprimento", "saque_direcao", "rally", "fase", "resultado", "desfecho", "meu_golpe", "meu_lado", "recepcao", "zona_x", "zona_y", "tempo_video_s", "nota"];
+    const head = ["partida", "adversario", "data", "set", "ponto", "sacador", "saque_efeito", "saque_comprimento", "saque_direcao", "rally", "fase", "resultado", "desfecho", "meu_golpe", "meu_lado", "recepcao", "recepcao_lado", "zona_x", "zona_y", "tempo_video_s", "nota"];
     const rows = [head.join(",")];
     DB.points.slice().sort((a, b) => a.matchId < b.matchId ? -1 : a.pointNo - b.pointNo).forEach(p => {
       const m = DB.matches.find(x => x.id === p.matchId) || {};
       const r = [
         m.id || "", m.opponent || "", m.date || "", p.setNo, p.pointNo, p.server === "me" ? "Eu" : "Adversario",
         spinsOf(p).join("+"), p.serveLen || "", p.serveSide || "", p.rallyLen, PHASES[phaseOf(p)].label,
-        isWin(p) ? "Ganho" : "Perda", OUTCOME_LABEL[p.outcome] || "", p.myStroke || "", p.myStrokeSide || "", p.recvStroke || "",
+        isWin(p) ? "Ganho" : "Perda", OUTCOME_LABEL[p.outcome] || "", p.myStroke || "", p.myStrokeSide || "", p.recvStroke || "", p.recvSide || "",
         p.zoneX || "", p.zoneY || "", p.videoTime == null ? "" : p.videoTime, p.note || ""
       ].map(csvCell);
       rows.push(r.join(","));
