@@ -1,0 +1,5 @@
+# backups locais e lixo do SO
+*.json.bak
+espanhol-backup-*.json
+espanhol-anki-*.csv
+.DS_Store

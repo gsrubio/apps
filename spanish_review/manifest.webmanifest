@@ -1,0 +1,16 @@
+{
+  "name": "Revisão de Espanhol",
+  "short_name": "Espanhol",
+  "description": "Revisão espaçada de correções e vocabulário de espanhol, alimentada pelos seus treinos de voz no Claude.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#FBFAF7",
+  "theme_color": "#0F8C7E",
+  "lang": "pt-BR",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
+}

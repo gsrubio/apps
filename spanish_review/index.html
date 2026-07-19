@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0F8C7E">
+<title>Revisão de Espanhol</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.svg">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="app">
+  <header class="appbar">
+    <div>
+      <div class="title" id="bar-title">Hoje</div>
+      <div class="sub" id="bar-sub">revisão espaçada</div>
+    </div>
+    <div class="variant" id="variant-lbl">🇲🇽 es-MX</div>
+  </header>
+
+  <div class="screenwrap">
+    <!-- HOJE -->
+    <section class="screen active" id="s-hoje">
+      <div class="hero">
+        <div class="ring">
+          <svg width="96" height="96" viewBox="0 0 96 96">
+            <circle cx="48" cy="48" r="42" stroke="var(--line)" stroke-width="8" fill="none"></circle>
+            <circle id="ring-arc" cx="48" cy="48" r="42" stroke="var(--accent)" stroke-width="8" fill="none"
+                    stroke-linecap="round" stroke-dasharray="264" stroke-dashoffset="264"></circle>
+          </svg>
+          <div class="num"><b id="ring-due">0</b><small>a revisar</small></div>
+        </div>
+        <div class="h-txt">
+          <h3 id="hoje-greet">¡Hola!</h3>
+          <p id="hoje-msg">Nada para revisar agora.</p>
+          <span class="streak" id="streak">🔥 <span id="streak-n">0</span> dias</span>
+        </div>
+      </div>
+
+      <div class="statrow">
+        <div class="stat new"><b id="st-new">0</b><span>novos</span></div>
+        <div class="stat due"><b id="st-due">0</b><span>revisão</span></div>
+        <div class="stat done"><b id="st-total">0</b><span>no baralho</span></div>
+      </div>
+
+      <button class="btn" id="hoje-review" onclick="go('revisar')">▶ Revisar</button>
+
+      <div class="minihdr"><h4>Adicionados recentemente</h4><a onclick="go('importar')">Importar +</a></div>
+      <div id="hoje-recent"></div>
+    </section>
+
+    <!-- REVISAR -->
+    <section class="screen" id="s-revisar">
+      <div id="rev-live" class="hidden">
+        <div class="progress"><i id="prog" style="width:0%"></i></div>
+        <div class="revmeta"><span id="rev-count">Card 1</span><span id="rev-left"></span></div>
+        <div class="card" id="card"></div>
+        <button class="btn showbtn" id="showbtn" onclick="revealCard()">Mostrar resposta</button>
+        <div class="grades hidden" id="grades">
+          <button class="grade again" onclick="grade('again')"><b>Errei</b><small data-g="again">–</small></button>
+          <button class="grade hard" onclick="grade('hard')"><b>Difícil</b><small data-g="hard">–</small></button>
+          <button class="grade good" onclick="grade('good')"><b>Bom</b><small data-g="good">–</small></button>
+          <button class="grade easy" onclick="grade('easy')"><b>Fácil</b><small data-g="easy">–</small></button>
+        </div>
+      </div>
+      <div class="done-state hidden" id="rev-done">
+        <div class="big">🎉</div>
+        <h3>¡Terminado por hoy!</h3>
+        <p id="rev-done-msg">Você revisou tudo que vencia hoje.</p>
+        <button class="btn ghost" onclick="go('hoje')">Voltar ao início</button>
+      </div>
+      <div class="empty-state hidden" id="rev-empty">
+        <div class="big">🌵</div>
+        <h3>Nada para revisar</h3>
+        <p>Sem cards vencendo agora. Importe do Claude ou volte mais tarde.</p>
+        <button class="btn ghost" onclick="go('importar')">Importar cards</button>
+      </div>
+    </section>
+
+    <!-- BIBLIOTECA -->
+    <section class="screen" id="s-biblioteca">
+      <div class="search">
+        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-4-4"></path></svg>
+        <input id="libsearch" placeholder="Buscar palavra ou tradução…" oninput="renderLib()">
+      </div>
+      <div class="filters">
+        <button class="fchip on" data-f="todos" onclick="setFilter(this)">Todos</button>
+        <button class="fchip" data-f="vocab" onclick="setFilter(this)">Vocabulário</button>
+        <button class="fchip" data-f="correcao" onclick="setFilter(this)">Correções</button>
+        <button class="fchip" data-f="due" onclick="setFilter(this)">Vencendo</button>
+      </div>
+      <div class="libhdr" id="libhdr">0 cards</div>
+      <div id="liblist"></div>
+    </section>
+
+    <!-- IMPORTAR -->
+    <section class="screen" id="s-importar">
+      <div class="callout"><div>💬</div><div>No fim do treino por voz, peça <b>"exporta"</b> ao Claude e cole o bloco aqui.</div></div>
+      <ol class="steps">
+        <li>Treine a conversa por voz no Claude</li>
+        <li>Digite <b>exporta</b> — ele gera um bloco</li>
+        <li>Cole abaixo e toque em <b>Analisar</b></li>
+      </ol>
+      <textarea id="paste" spellcheck="false" placeholder="Cole aqui o bloco do Claude (uma linha por card, separado por tabulação)…"></textarea>
+      <button class="btn ghost" style="margin-top:12px" onclick="analyze()">Analisar bloco</button>
+      <div class="preview hidden" id="preview">
+        <div class="head"><span>Encontrados:</span><span class="chip vocab" id="pv-voc">0 vocab</span><span class="chip correcao" id="pv-cor">0 correções</span></div>
+        <div id="pv-list"></div>
+        <button class="btn" id="pv-import" style="margin-top:14px" onclick="doImport()">Importar</button>
+      </div>
+    </section>
+
+    <!-- AJUSTES -->
+    <section class="screen" id="s-ajustes">
+      <div class="group">
+        <div class="glabel">Idioma</div>
+        <div class="grow"><div class="lab"><b>Variante do espanhol</b><span>voz e exemplos</span></div>
+          <div class="val"><div class="seg" id="seg-variant">
+            <button data-v="es-MX">es-MX</button><button data-v="es-ES">es-ES</button><button data-v="es-AR">es-AR</button>
+          </div></div></div>
+        <div class="grow"><div class="lab"><b>Explicações</b><span>idioma das correções</span></div><div class="val">Português</div></div>
+      </div>
+      <div class="group">
+        <div class="glabel">Revisão</div>
+        <div class="grow"><div class="lab"><b>Novos por dia</b></div><div class="val"><div class="stepper">
+          <button onclick="stepNew(-1)">−</button><b id="newn">10</b><button onclick="stepNew(1)">+</button></div></div></div>
+        <div class="grow"><div class="lab"><b>Tocar áudio ao revelar</b></div><div class="val"><div class="seg" id="seg-audio">
+          <button data-a="1">Sim</button><button data-a="0">Não</button></div></div></div>
+        <div class="grow"><div class="lab"><b>Direção do vocabulário</b><span>o que aparece na frente</span></div><div class="val"><div class="seg" id="seg-dir">
+          <button data-d="es-pt">ES→PT</button><button data-d="pt-es">PT→ES</button><button data-d="ambos">Ambos</button></div></div></div>
+      </div>
+      <div class="group">
+        <div class="glabel">Google Drive — 1 clique (via Apps Script)</div>
+        <div class="grow block">
+          <div class="search" style="margin:0 0 8px"><svg viewBox="0 0 24 24"><path d="M9 17H7A5 5 0 017 7h2"></path><path d="M15 7h2a5 5 0 010 10h-2"></path><path d="M8 12h8"></path></svg>
+            <input id="drive-url" placeholder="URL do endpoint do Apps Script (…/exec)" spellcheck="false"></div>
+          <div class="search" style="margin:0 0 10px"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"></rect><path d="M8 11V8a4 4 0 018 0v3"></path></svg>
+            <input id="drive-token" placeholder="Token (senha do endpoint)" spellcheck="false"></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <button class="btn ghost" onclick="driveImport()">↓ Importar</button>
+            <button class="btn" onclick="driveExport()">↑ Exportar</button>
+          </div>
+        </div>
+        <div class="grow"><div class="lab"><b>Última sincronização</b></div><div class="val" id="drive-last">nunca</div></div>
+      </div>
+      <div class="group">
+        <div class="glabel">Backup manual &amp; portabilidade</div>
+        <div class="grow"><div class="lab"><b>Exportar para Anki</b><span>arquivo .csv</span></div><div class="val"><button class="link-btn" onclick="exportAnki()">Exportar</button></div></div>
+        <div class="grow"><div class="lab"><b>Backup (JSON)</b><span>inclui o agendamento SRS</span></div><div class="val"><button class="link-btn" onclick="exportJSON()">Exportar</button></div></div>
+        <div class="grow"><div class="lab"><b>Restaurar backup</b><span>de um arquivo .json</span></div><div class="val"><button class="link-btn" onclick="document.getElementById('restore-file').click()">Importar</button></div></div>
+      </div>
+      <div class="grow" style="border:1px solid var(--line);border-radius:14px;background:var(--surface)">
+        <div class="lab"><b><span id="storage-n">0</span> cards</b><span>neste aparelho · <button class="link-btn" style="font-weight:400" onclick="toggleTheme()">alternar tema</button></span></div>
+        <div class="val">💾 offline</div>
+      </div>
+      <input type="file" id="restore-file" accept=".json,application/json" class="hidden" onchange="restoreJSON(event)">
+      <p class="foot">Dados guardados só neste dispositivo. Faça backup no Drive ou em arquivo.</p>
+    </section>
+  </div>
+
+  <nav class="tabbar">
+    <button class="tab active" id="t-hoje" onclick="go('hoje')">
+      <svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7"></path><path d="M5 10v10h14V10"></path></svg>Hoje</button>
+    <button class="tab" id="t-revisar" onclick="go('revisar')">
+      <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"></rect><path d="M3 9h18"></path></svg>Revisar</button>
+    <button class="tab" id="t-biblioteca" onclick="go('biblioteca')">
+      <svg viewBox="0 0 24 24"><path d="M4 5h11a3 3 0 013 3v11"></path><path d="M4 5v14h14"></path><path d="M8 9h7M8 13h7"></path></svg>Biblioteca</button>
+    <button class="tab" id="t-importar" onclick="go('importar')">
+      <svg viewBox="0 0 24 24"><path d="M12 3v12"></path><path d="M8 11l4 4 4-4"></path><path d="M4 19h16"></path></svg>Importar</button>
+    <button class="tab" id="t-ajustes" onclick="go('ajustes')">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"></circle><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"></path></svg>Ajustes</button>
+  </nav>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="srs.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
