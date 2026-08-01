@@ -35,6 +35,8 @@ Backup/sync entre aparelhos **sem login OAuth e sem servidor**, via um endpoint 
 3. No app, **Ajustes → Google Drive**: cole a URL e o token.
 4. Use **↑ Exportar** (salva o baralho + agendamento no Drive) e **↓ Importar** (traz o estado atual em outro aparelho).
 
+O backup fica numa **pasta dedicada** no seu Drive (`Revisão de Espanhol`), criada automaticamente no primeiro "↑ Exportar" — não vai para a raiz do "Meu Drive". Para mudar o nome, edite `FOLDER_NAME` no topo do script.
+
 ## Arquivos
 
 | Arquivo | Papel |
